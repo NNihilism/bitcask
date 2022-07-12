@@ -132,7 +132,7 @@ func (db *BitcaskDB) loadLogFile() error {
 
 		fType := logfile.FileType(dataType)
 		for i, fid := range fids {
-			lf, err := logfile.GetLogFile(db.opts.DBPath, fType, fid)
+			lf, err := logfile.GetLogFile(db.opts.DBPath, fType, fid, db.opts.LogFileSizeThreshold)
 			if err != nil {
 				return err
 			}
@@ -224,7 +224,7 @@ func (db *BitcaskDB) writeLogEntry(ent *logfile.LogEntry, dataType DataType) (*v
 		db.archivedLogFile[dataType][activeFileId] = activeLogFile
 
 		// open a new log file.
-		lf, err := logfile.GetLogFile(opts.DBPath, logfile.FileType(dataType), activeFileId+1)
+		lf, err := logfile.GetLogFile(opts.DBPath, logfile.FileType(dataType), activeFileId+1, db.opts.LogFileSizeThreshold)
 		if err != nil {
 			db.mu.Unlock()
 			return nil, err
@@ -250,7 +250,7 @@ func (db *BitcaskDB) initLogFile(dataType DataType) error {
 	if db.activateLogFile[dataType] != nil {
 		return nil
 	}
-	lf, err := logfile.GetLogFile(db.opts.DBPath, logfile.FileType(dataType), logfile.InitialLogFileId)
+	lf, err := logfile.GetLogFile(db.opts.DBPath, logfile.FileType(dataType), logfile.InitialLogFileId, db.opts.LogFileSizeThreshold)
 	if err != nil {
 		return err
 	}

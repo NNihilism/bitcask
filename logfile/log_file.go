@@ -54,7 +54,7 @@ var (
 )
 
 // GetLogFile open an existing or create a new log file.
-func GetLogFile(path string, fType FileType, fid uint32) (lf *LogFile, err error) {
+func GetLogFile(path string, fType FileType, fid uint32, fsize int64) (lf *LogFile, err error) {
 	if !util.PathExist(path) {
 		err = ErrInvalidDir
 		return
@@ -62,7 +62,7 @@ func GetLogFile(path string, fType FileType, fid uint32) (lf *LogFile, err error
 	lf = &LogFile{Fid: fid}
 	fileName := getFileName(path, fType, fid)
 
-	fd, err := openFile(fileName) // Why does rosedb use truncate ?!!
+	fd, err := openFile(fileName, fsize) // Why does rosedb use truncate ?!!
 
 	if err != nil {
 		return
@@ -114,12 +114,23 @@ func getFileName(path string, fType FileType, fid uint32) string {
 	return path + string(os.PathSeparator) + FileNamesMap[fType] + fmt.Sprintf("%09d", fid)
 }
 
-func openFile(fName string) (*os.File, error) {
+func openFile(fName string, fsize int64) (*os.File, error) {
 	fmt.Println(fName)
 	fd, err := os.OpenFile(fName, os.O_CREATE|os.O_RDWR, FilePerm)
 
 	if err != nil {
 		return nil, err
+	}
+
+	stat, err := fd.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	if stat.Size() < fsize {
+		if err := fd.Truncate(fsize); err != nil {
+			return nil, err
+		}
 	}
 	return fd, nil
 }

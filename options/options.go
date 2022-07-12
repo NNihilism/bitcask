@@ -65,6 +65,6 @@ func DefaultOptions(path string) Options {
 		IndexMode:            KeyValueMemMode,
 		LogFileGCInterval:    time.Hour * 8,
 		LogFileGCRatio:       0.5,
-		LogFileSizeThreshold: 512 << 20, // 512*2e20B = 512MB
+		LogFileSizeThreshold: 512 << 10, // 512*2e20B = 512MB
 	}
 }
