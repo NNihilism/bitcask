@@ -6,7 +6,6 @@ import (
 	"bitcask/options"
 	"bitcask/util"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -50,6 +49,9 @@ type (
 var (
 	// ErrLogFileNotFound log file not found
 	ErrLogFileNotFound = errors.New("log file not found")
+
+	// ErrKeyNotFound key not found
+	ErrKeyNotFound = errors.New("key not found")
 )
 
 // DataType Define the data structure type.
@@ -172,7 +174,6 @@ func (db *BitcaskDB) LoadIndexFromLogFiles() error {
 			var offset int64
 			for {
 				entry, eSize, err := logFile.ReadLogEntry(offset)
-				fmt.Println("eSize,", eSize)
 				if err != nil {
 					if err == io.EOF || err == logfile.ErrEndOfEntry {
 						break
@@ -188,7 +189,6 @@ func (db *BitcaskDB) LoadIndexFromLogFiles() error {
 			if i == len(fids)-1 {
 				atomic.StoreInt64(&logFile.WriteAt, offset)
 			}
-			fmt.Println("&logFile.WriteAt", &logFile.WriteAt)
 		}
 	}
 	wg := new(sync.WaitGroup)
@@ -234,7 +234,6 @@ func (db *BitcaskDB) writeLogEntry(ent *logfile.LogEntry, dataType DataType) (*v
 		db.mu.Unlock()
 	}
 	offset := atomic.LoadInt64(&activeLogFile.WriteAt)
-	log.Println("entryBuf : ", entryBuf)
 	if err := activeLogFile.WriteLogEntry(entryBuf); err != nil {
 		return nil, err
 	}

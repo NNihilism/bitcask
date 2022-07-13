@@ -34,3 +34,40 @@ func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree, entry *logf
 	idxTree.Put(entry.Key, idxNode)
 	return nil
 }
+
+func (db *BitcaskDB) getVal(idxTree *art.AdaptiveRadixTree, key []byte, dataType DataType) ([]byte, error) {
+	rawData := idxTree.Get(key)
+	if rawData == nil {
+		return nil, ErrKeyNotFound
+	}
+	idxNode := rawData.(*indexNode)
+	if idxNode == nil {
+		return nil, ErrKeyNotFound
+	}
+
+	ts := time.Now().Unix()
+	if idxNode.expiredAt != 0 && idxNode.expiredAt < ts {
+		return nil, ErrKeyNotFound
+	}
+
+	if db.opts.IndexMode == options.KeyValueMemMode {
+		return idxNode.value, nil
+	}
+
+	lf := db.activateLogFile[dataType]
+	if lf.Fid != idxNode.fid {
+		lf = db.archivedLogFile[dataType][idxNode.fid]
+	}
+	if lf == nil {
+		return nil, ErrKeyNotFound
+	}
+	logEntry, _, err := lf.ReadLogEntry(idxNode.offset)
+	if err != nil {
+		return nil, err
+	}
+	if logEntry.Type == logfile.TypeDelete || (logEntry.ExpiredAt != 0 && logEntry.ExpiredAt < ts) {
+		return nil, ErrKeyNotFound
+	}
+
+	return logEntry.Value, nil
+}

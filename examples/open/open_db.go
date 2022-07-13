@@ -15,7 +15,6 @@ func main() {
 		fmt.Printf("open rosedb err: %v", err)
 		return
 	}
-	fmt.Println(db)
-	db.Set([]byte("AAAAAAKey..."), []byte("Value..."))
+	db.Set([]byte(""), []byte("1"))
 
 }

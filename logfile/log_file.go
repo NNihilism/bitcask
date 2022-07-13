@@ -115,7 +115,6 @@ func getFileName(path string, fType FileType, fid uint32) string {
 }
 
 func openFile(fName string, fsize int64) (*os.File, error) {
-	fmt.Println(fName)
 	fd, err := os.OpenFile(fName, os.O_CREATE|os.O_RDWR, FilePerm)
 
 	if err != nil {
@@ -137,13 +136,9 @@ func openFile(fName string, fsize int64) (*os.File, error) {
 
 func (lf *LogFile) readBytes(offset, n int64) (buf []byte, err error) {
 	buf = make([]byte, n)
-	fmt.Println("n : ", n)
-	res, err := lf.fd.ReadAt(buf, offset)
-	fmt.Println("buf : ", buf)
-	fmt.Println("len(buf)", len(buf))
-	fmt.Println("res", res)
+	_, err = lf.fd.ReadAt(buf, offset)
+
 	if err != nil {
-		fmt.Println("err != nil")
 		return
 	}
 	return
@@ -161,15 +156,19 @@ func EncodeEntry(entry *LogEntry) ([]byte, int) {
 		return nil, 0
 	}
 	header := make([]byte, MaxHeaderSize)
+
 	// encode header
 	header[4] = byte(entry.Type)
 	var index = 5
 	index += binary.PutVarint(header[index:], int64(len(entry.Key)))
+
 	index += binary.PutVarint(header[index:], int64(len(entry.Value)))
+
 	index += binary.PutVarint(header[index:], entry.ExpiredAt)
 
-	var size = index + len(entry.Key) + len(entry.Value)
+	var size = index + len(entry.Key) + len(entry.Value) // len of header + len of key + len of value
 	buf := make([]byte, size)
+
 	copy(buf[:index], header[:])
 	// key and value.
 	copy(buf[index:], entry.Key)
@@ -178,6 +177,7 @@ func EncodeEntry(entry *LogEntry) ([]byte, int) {
 	// crc32.
 	crc := crc32.ChecksumIEEE(buf[4:])
 	binary.LittleEndian.PutUint32(buf[:4], crc)
+
 	return buf, size
 }
 

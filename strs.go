@@ -18,3 +18,9 @@ func (db *BitcaskDB) Set(key, value []byte) error {
 	}
 	return nil
 }
+
+func (db *BitcaskDB) Get(key []byte) ([]byte, error) {
+	db.strIndex.mu.RLock()
+	defer db.strIndex.mu.RUnlock()
+	return db.getVal(db.strIndex.idxTree, key, String)
+}
