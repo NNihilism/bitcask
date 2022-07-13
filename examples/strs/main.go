@@ -17,6 +17,8 @@ func main() {
 		return
 	}
 
+	time.Sleep(time.Second * 3)
+
 	// Set
 	key := []byte("Key - Test")
 	value := []byte("Yeah ! You get the value of the key")
@@ -60,4 +62,14 @@ func main() {
 	db.MSet(key, val, key, val, key1, value1)
 	val1, _ := db.Get(key1)
 	fmt.Println(string(val1))
+
+	// Strlen
+	sLen1 := db.StrLen(key1)
+	sLen := db.StrLen(key)
+	fmt.Println("sLen1:", sLen1)
+	fmt.Println("sLen:", sLen)
+
+	// Count
+	fmt.Println("count:", db.Count())
+
 }

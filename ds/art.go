@@ -26,3 +26,7 @@ func (art *AdaptiveRadixTree) Get(key []byte) interface{} {
 func (art *AdaptiveRadixTree) Delete(key []byte) (val interface{}, updated bool) {
 	return art.tree.Delete(key)
 }
+
+func (art *AdaptiveRadixTree) Size() int {
+	return art.tree.Size()
+}

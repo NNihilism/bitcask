@@ -20,6 +20,14 @@ func (db *BitcaskDB) buildStrsIndex(ent *logfile.LogEntry, pos *valuePos) {
 		db.strIndex.idxTree.Delete(ent.Key)
 		return
 	}
+	idxNode := &indexNode{fid: pos.fid, offset: pos.offset, entrySize: pos.entrySize}
+	if ent.ExpiredAt != 0 {
+		idxNode.expiredAt = ent.ExpiredAt
+	}
+	if db.opts.IndexMode == options.KeyValueMemMode {
+		idxNode.value = ent.Value
+	}
+	db.strIndex.idxTree.Put(ent.Key, idxNode)
 }
 
 func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree, entry *logfile.LogEntry, pos *valuePos) error {
@@ -70,4 +78,21 @@ func (db *BitcaskDB) getVal(idxTree *art.AdaptiveRadixTree, key []byte, dataType
 	}
 
 	return logEntry.Value, nil
+}
+
+func (db *BitcaskDB) getIndexNode(idxTree *art.AdaptiveRadixTree, key []byte, dataType DataType) (*indexNode, error) {
+	rawData := idxTree.Get(key)
+	if rawData == nil {
+		return nil, ErrKeyNotFound
+	}
+	idxNode := rawData.(*indexNode)
+	if idxNode == nil {
+		return nil, ErrKeyNotFound
+	}
+
+	ts := time.Now().Unix()
+	if idxNode.expiredAt != 0 && idxNode.expiredAt < ts {
+		return nil, ErrKeyNotFound
+	}
+	return idxNode, nil
 }

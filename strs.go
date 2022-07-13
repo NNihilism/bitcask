@@ -23,6 +23,9 @@ func (db *BitcaskDB) Set(key, value []byte) error {
 
 // SetEX set key to hold the string value and set key to timeout after the given duration.
 func (db *BitcaskDB) SetEX(key, value []byte, duration time.Duration) error {
+	if duration < 0 {
+		return ErrInvalidTimeDuration
+	}
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()
 
@@ -86,6 +89,8 @@ func (db *BitcaskDB) MSet(args ...[]byte) error {
 	return nil
 }
 
+// Append appends the value at the end of the old value if key already exists.
+// It will be similar to Set if key does not exist.
 func (db *BitcaskDB) Append(key, value []byte) error {
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()
@@ -106,12 +111,15 @@ func (db *BitcaskDB) Append(key, value []byte) error {
 	return db.updateIndexTree(db.strIndex.idxTree, entry, pos)
 }
 
+// Get get the value of key.
+// If the key does not exist the error ErrKeyNotFound is returned.
 func (db *BitcaskDB) Get(key []byte) ([]byte, error) {
 	db.strIndex.mu.RLock()
 	defer db.strIndex.mu.RUnlock()
 	return db.getVal(db.strIndex.idxTree, key, String)
 }
 
+// Delete value at the given key.
 func (db *BitcaskDB) Delete(key []byte) error {
 	db.strIndex.mu.Lock()
 	defer db.strIndex.mu.Unlock()
@@ -128,4 +136,69 @@ func (db *BitcaskDB) Delete(key []byte) error {
 		The part of Discard is ignored...
 	*/
 	return nil
+}
+
+// StrLen returns the length of the string value stored at key. If the key
+// doesn't exist, it returns 0.
+func (db *BitcaskDB) StrLen(key []byte) int {
+	db.strIndex.mu.RLock()
+	defer db.strIndex.mu.RUnlock()
+
+	value, err := db.getVal(db.strIndex.idxTree, key, String)
+	if err != nil {
+		return 0
+	}
+	return len(value)
+}
+
+// Count returns the total number of keys of String.
+func (db *BitcaskDB) Count() int {
+	db.strIndex.mu.RLock()
+	defer db.strIndex.mu.RUnlock()
+
+	if db.strIndex.idxTree == nil {
+		return 0
+	}
+	return db.strIndex.idxTree.Size()
+}
+
+// Persist remove the expiration time for the given key.
+func (db *BitcaskDB) Persist(key []byte) error {
+	db.strIndex.mu.RLock()
+	val, err := db.getVal(db.strIndex.idxTree, key, String)
+	if err != nil {
+		db.strIndex.mu.RUnlock()
+		return err
+	}
+	db.strIndex.mu.RUnlock()
+	return db.Set(key, val)
+}
+
+// Expire set the expiration time for the given key.
+func (db *BitcaskDB) Expire(key []byte, duration time.Duration) error {
+	db.strIndex.mu.Lock()
+	val, err := db.getVal(db.strIndex.idxTree, key, String)
+	if err != nil {
+		db.strIndex.mu.Unlock()
+		return err
+	}
+	db.strIndex.mu.Unlock()
+	return db.SetEX(key, val, duration)
+}
+
+// TTL get ttl(time to live) for the given key.
+func (db *BitcaskDB) TTL(key []byte) (int64, error) {
+	db.strIndex.mu.RLock()
+	defer db.strIndex.mu.RUnlock()
+
+	idxNode, err := db.getIndexNode(db.strIndex.idxTree, key, String)
+	if err != nil {
+		return 0, err
+	}
+
+	var ttl int64
+	if idxNode.expiredAt != 0 {
+		ttl = idxNode.expiredAt - time.Now().Unix()
+	}
+	return ttl, nil
 }

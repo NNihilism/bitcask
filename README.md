@@ -11,6 +11,8 @@
     - MSet 同时插入多条记录
     - MSetNX
     - Append 在指定key对应的value的末尾添加数据，若key不存在则等同于Set
+    - StrLen 返回指定key对应value的长度
+    - Count 返回合法的记录条数
 2. 其他
 #### 其他
 - 文件定期归档

@@ -55,6 +55,9 @@ var (
 
 	// ErrWrongNumberOfArgs doesn't match key-value pair numbers
 	ErrWrongNumberOfArgs = errors.New("wrong number of arguments")
+
+	// ErrWrongNumberOfArgs doesn't match key-value pair numbers
+	ErrInvalidTimeDuration = errors.New("invalid time duration")
 )
 
 // DataType Define the data structure type.
