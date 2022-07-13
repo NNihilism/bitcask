@@ -52,6 +52,9 @@ var (
 
 	// ErrKeyNotFound key not found
 	ErrKeyNotFound = errors.New("key not found")
+
+	// ErrWrongNumberOfArgs doesn't match key-value pair numbers
+	ErrWrongNumberOfArgs = errors.New("wrong number of arguments")
 )
 
 // DataType Define the data structure type.
@@ -234,7 +237,7 @@ func (db *BitcaskDB) writeLogEntry(ent *logfile.LogEntry, dataType DataType) (*v
 		db.mu.Unlock()
 	}
 	offset := atomic.LoadInt64(&activeLogFile.WriteAt)
-	if err := activeLogFile.WriteLogEntry(entryBuf); err != nil {
+	if err := activeLogFile.Write(entryBuf); err != nil {
 		return nil, err
 	}
 	if opts.Sync {

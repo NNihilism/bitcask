@@ -10,11 +10,10 @@ import (
 func main() {
 	path := "D:" + string(os.PathSeparator) + "test"
 	opts := options.DefaultOptions(path)
-	db, err := bitcask.Open(opts)
+	_, err := bitcask.Open(opts)
 	if err != nil {
 		fmt.Printf("open rosedb err: %v", err)
 		return
 	}
-	db.Set([]byte(""), []byte("1"))
 
 }

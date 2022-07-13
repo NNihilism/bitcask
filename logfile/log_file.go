@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
-	"log"
 	"os"
 	"sync/atomic"
 )
@@ -214,14 +213,13 @@ func getEntryCrc(e *LogEntry, h []byte) uint32 {
 	return crc
 }
 
-func (lf *LogFile) WriteLogEntry(buf []byte) error {
+func (lf *LogFile) Write(buf []byte) error {
 	if len(buf) <= 0 {
 		return nil
 	}
 	offset := atomic.LoadInt64(&lf.WriteAt)
 	n, err := lf.fd.WriteAt(buf, offset)
 	if err != nil {
-		log.Println("Failed to write logEntry")
 		return err
 	}
 	if n != len(buf) {
