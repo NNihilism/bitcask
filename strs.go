@@ -2,7 +2,10 @@ package bitcask
 
 import (
 	"bitcask/logfile"
+	"bytes"
 	"errors"
+	"math"
+	"strconv"
 	"time"
 )
 
@@ -201,4 +204,89 @@ func (db *BitcaskDB) TTL(key []byte) (int64, error) {
 		ttl = idxNode.expiredAt - time.Now().Unix()
 	}
 	return ttl, nil
+}
+
+// incrDecrBy is a helper method for Incr, IncrBy, Decr, and DecrBy methods. It updates the key by incr.
+func (db *BitcaskDB) incrDecrBy(key []byte, incr int64) (int64, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	val, err := db.getVal(db.strIndex.idxTree, key, String)
+	if err != nil && !errors.Is(err, ErrKeyNotFound) {
+		return 0, err
+	}
+	if bytes.Equal(val, nil) {
+		val = []byte("0")
+	}
+
+	valInt64, err := strconv.ParseInt(string(val), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	if (valInt64 < 0 && incr < 0 && valInt64 < math.MinInt64-incr) ||
+		(valInt64 > 0 && incr > 0 && valInt64 > math.MaxInt64-incr) {
+		return 0, ErrIntegerOverflow
+	}
+
+	valInt64 += incr
+	val = []byte(strconv.FormatInt(valInt64, 10))
+	ent := &logfile.LogEntry{Key: key, Value: val}
+	pos, err := db.writeLogEntry(ent, String)
+	if err != nil {
+		return 0, err
+	}
+	err = db.updateIndexTree(db.strIndex.idxTree, ent, pos)
+	if err != nil {
+		return 0, err
+	}
+	return valInt64, nil
+}
+
+// Decr decrements the number stored at key by one. If the key does not exist,
+// it is set to 0 before performing the operation. It returns ErrWrongKeyType
+// error if the value is not integer type. Also, it returns ErrIntegerOverflow
+// error if the value exceeds after decrementing the value.
+func (db *BitcaskDB) Decr(key []byte) (int64, error) {
+	db.strIndex.mu.Lock()
+	defer db.strIndex.mu.Unlock()
+	return db.incrDecrBy(key, -1)
+}
+
+// DecrBy decrements the number stored at key by decr. If the key doesn't
+// exist, it is set to 0 before performing the operation. It returns ErrWrongKeyType
+// error if the value is not integer type. Also, it returns ErrIntegerOverflow
+// error if the value exceeds after decrementing the value.
+func (db *BitcaskDB) DecrBy(key []byte, decr int64) (int64, error) {
+	db.strIndex.mu.Lock()
+	defer db.strIndex.mu.Unlock()
+	return db.incrDecrBy(key, -decr)
+}
+
+// Incr increments the number stored at key by one. If the key does not exist,
+// it is set to 0 before performing the operation. It returns ErrWrongKeyType
+// error if the value is not integer type. Also, it returns ErrIntegerOverflow
+// error if the value exceeds after incrementing the value.
+func (db *BitcaskDB) Incr(key []byte) (int64, error) {
+	db.strIndex.mu.Lock()
+	defer db.strIndex.mu.Unlock()
+	return db.incrDecrBy(key, 1)
+}
+
+// IncrBy increments the number stored at key by incr. If the key doesn't
+// exist, it is set to 0 before performing the operation. It returns ErrWrongKeyType
+// error if the value is not integer type. Also, it returns ErrIntegerOverflow
+// error if the value exceeds after incrementing the value.
+func (db *BitcaskDB) IncrBy(key []byte, incr int64) (int64, error) {
+	db.strIndex.mu.Lock()
+	defer db.strIndex.mu.Unlock()
+	return db.incrDecrBy(key, incr)
+}
+
+// Scan iterates over all keys of type String and finds its value.
+// Parameter prefix will match key`s prefix, and pattern is a regular expression that also matchs the key.
+// Parameter count limits the number of keys, a nil slice will be returned if count is not a positive number.
+// The returned values will be a mixed data of keys and values, like [key1, value1, key2, value2, etc...].
+func (db *BitcaskDB) Scan(prefix []byte, pattern string, count int) ([][]byte, error) {
+	return nil, nil
 }

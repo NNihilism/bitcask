@@ -58,6 +58,9 @@ var (
 
 	// ErrWrongNumberOfArgs doesn't match key-value pair numbers
 	ErrInvalidTimeDuration = errors.New("invalid time duration")
+
+	// ErrIntegerOverflow overflows int64 limitations
+	ErrIntegerOverflow = errors.New("increment or decrement overflow")
 )
 
 // DataType Define the data structure type.
