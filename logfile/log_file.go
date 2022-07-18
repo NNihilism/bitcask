@@ -1,6 +1,7 @@
 package logfile
 
 import (
+	"bitcask/ioselector"
 	"bitcask/util"
 	"encoding/binary"
 	"errors"
@@ -11,18 +12,17 @@ import (
 )
 
 type LogFile struct {
-	Fid      uint32 // file id
-	WriteAt  int64  // offset
-	fd       *os.File
-	FileLock // 匿名结构体
+	Fid        uint32 // file id
+	WriteAt    int64  // offset
+	IoSelector ioselector.IOSelector
+	FileLock   // 匿名结构体
 }
 
 type FileType int8
 
 const (
 	FilePrefix       = "log."
-	InitialLogFileId = 0 // InitialLogFileId initial log file id: 0.
-	LogFileTypeNum   = 1
+	InitialLogFileId = 0    // InitialLogFileId initial log file id: 0.
 	FilePerm         = 0644 // FilePerm default permission of the newly created log file.
 )
 
@@ -61,13 +61,12 @@ func GetLogFile(path string, fType FileType, fid uint32, fsize int64) (lf *LogFi
 	lf = &LogFile{Fid: fid}
 	fileName := getFileName(path, fType, fid)
 
-	fd, err := openFile(fileName, fsize) // Why does rosedb use truncate ?!!
-
+	ioSelector, err := ioselector.NewFileIOSelector(fileName, fsize)
 	if err != nil {
 		return
 	}
+	lf.IoSelector = ioSelector
 
-	lf.fd = fd
 	return
 }
 
@@ -113,29 +112,9 @@ func getFileName(path string, fType FileType, fid uint32) string {
 	return path + string(os.PathSeparator) + FileNamesMap[fType] + fmt.Sprintf("%09d", fid)
 }
 
-func openFile(fName string, fsize int64) (*os.File, error) {
-	fd, err := os.OpenFile(fName, os.O_CREATE|os.O_RDWR, FilePerm)
-
-	if err != nil {
-		return nil, err
-	}
-
-	stat, err := fd.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	if stat.Size() < fsize {
-		if err := fd.Truncate(fsize); err != nil {
-			return nil, err
-		}
-	}
-	return fd, nil
-}
-
 func (lf *LogFile) readBytes(offset, n int64) (buf []byte, err error) {
 	buf = make([]byte, n)
-	_, err = lf.fd.ReadAt(buf, offset)
+	_, err = lf.IoSelector.Read(buf, offset)
 
 	if err != nil {
 		return
@@ -217,18 +196,21 @@ func (lf *LogFile) Write(buf []byte) error {
 	if len(buf) <= 0 {
 		return nil
 	}
+
 	offset := atomic.LoadInt64(&lf.WriteAt)
-	n, err := lf.fd.WriteAt(buf, offset)
+	n, err := lf.IoSelector.Write(buf, offset)
+
 	if err != nil {
 		return err
 	}
 	if n != len(buf) {
 		return ErrWriteSizeNotEqual
 	}
+
 	atomic.AddInt64(&lf.WriteAt, int64(n))
 	return nil
 }
 
 func (lf *LogFile) Sync() error {
-	return lf.fd.Sync()
+	return lf.IoSelector.Sync()
 }

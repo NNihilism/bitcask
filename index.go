@@ -4,6 +4,11 @@ import (
 	art "bitcask/ds"
 	"bitcask/logfile"
 	"bitcask/options"
+	"io"
+	"log"
+	"sort"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -95,4 +100,54 @@ func (db *BitcaskDB) getIndexNode(idxTree *art.AdaptiveRadixTree, key []byte, da
 		return nil, ErrKeyNotFound
 	}
 	return idxNode, nil
+}
+
+func (db *BitcaskDB) LoadIndexFromLogFiles() error {
+	iteratorAndHandle := func(dataType DataType, wg *sync.WaitGroup) {
+		defer wg.Done()
+		fids := db.fidMap[dataType]
+		if len(fids) == 0 {
+			return
+		}
+		sort.Slice(fids, func(i, j int) bool { return fids[i] < fids[j] })
+
+		for i, fid := range fids {
+
+			var logFile *logfile.LogFile
+			if i == len(fids)-1 {
+				logFile = db.activateLogFile[dataType]
+			} else {
+				logFile = db.archivedLogFile[dataType][fid]
+			}
+			if logFile == nil {
+				log.Fatalf("log file is nil, failed to open db")
+			}
+
+			var offset int64
+			for {
+				entry, eSize, err := logFile.ReadLogEntry(offset)
+				if err != nil {
+					if err == io.EOF || err == logfile.ErrEndOfEntry {
+						break
+					}
+					log.Fatalf("read log entry from file err, failed to open db")
+				}
+
+				pos := &valuePos{fid: fid, offset: offset}
+				db.buildIndex(dataType, entry, pos)
+				offset += eSize
+			}
+			// set latest log file`s WriteAt.
+			if i == len(fids)-1 {
+				atomic.StoreInt64(&logFile.WriteAt, offset)
+			}
+		}
+	}
+	wg := new(sync.WaitGroup)
+	wg.Add(LogFileTypeNum)
+	for i := 0; i < LogFileTypeNum; i++ {
+		go iteratorAndHandle(DataType(i), wg)
+	}
+	wg.Wait()
+	return nil
 }

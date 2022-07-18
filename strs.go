@@ -283,6 +283,45 @@ func (db *BitcaskDB) IncrBy(key []byte, incr int64) (int64, error) {
 	return db.incrDecrBy(key, incr)
 }
 
+// GetRange returns the substring of the string value stored at key, [start, end]
+// determined by the offsets start and end.
+func (db *BitcaskDB) GetRange(key []byte, start, end int) ([]byte, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	val, err := db.getVal(db.strIndex.idxTree, key, String)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(val) == 0 {
+		return []byte{}, nil
+	}
+
+	if start < 0 {
+		start = start + len(val)
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	if end < 0 {
+		end = end + len(val)
+		if end < 0 {
+			end = 0
+		}
+	}
+
+	if end > len(val)-1 {
+		end = len(val) - 1
+	}
+
+	if start > end {
+		return []byte{}, nil
+	}
+	return val[start : end+1], nil
+}
+
 // Scan iterates over all keys of type String and finds its value.
 // Parameter prefix will match key`s prefix, and pattern is a regular expression that also matchs the key.
 // Parameter count limits the number of keys, a nil slice will be returned if count is not a positive number.

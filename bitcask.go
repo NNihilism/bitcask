@@ -6,15 +6,17 @@ import (
 	"bitcask/options"
 	"bitcask/util"
 	"errors"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
+	"time"
 )
 
 type archivedFiles map[uint32]*logfile.LogFile
@@ -27,6 +29,7 @@ type (
 		strIndex        *strIndex
 		opts            options.Options
 		mu              *sync.RWMutex
+		gcState         int32
 	}
 	valuePos struct {
 		fid       uint32
@@ -66,6 +69,10 @@ var (
 // DataType Define the data structure type.
 type DataType = int8
 
+const (
+	LogFileTypeNum = 1
+)
+
 // Support String right now.
 const (
 	String DataType = iota
@@ -97,6 +104,8 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 	if err := db.LoadIndexFromLogFiles(); err != nil {
 		return nil, err
 	}
+
+	go db.handleLogFileGC()
 
 	return db, nil
 }
@@ -159,56 +168,6 @@ func (db *BitcaskDB) loadLogFile() error {
 	return nil
 }
 
-func (db *BitcaskDB) LoadIndexFromLogFiles() error {
-	iteratorAndHandle := func(dataType DataType, wg *sync.WaitGroup) {
-		defer wg.Done()
-		fids := db.fidMap[dataType]
-		if len(fids) == 0 {
-			return
-		}
-		sort.Slice(fids, func(i, j int) bool { return fids[i] < fids[j] })
-
-		for i, fid := range fids {
-
-			var logFile *logfile.LogFile
-			if i == len(fids)-1 {
-				logFile = db.activateLogFile[dataType]
-			} else {
-				logFile = db.archivedLogFile[dataType][fid]
-			}
-			if logFile == nil {
-				log.Fatalf("log file is nil, failed to open db")
-			}
-
-			var offset int64
-			for {
-				entry, eSize, err := logFile.ReadLogEntry(offset)
-				if err != nil {
-					if err == io.EOF || err == logfile.ErrEndOfEntry {
-						break
-					}
-					log.Fatalf("read log entry from file err, failed to open db")
-				}
-
-				pos := &valuePos{fid: fid, offset: offset}
-				db.buildIndex(dataType, entry, pos)
-				offset += eSize
-			}
-			// set latest log file`s WriteAt.
-			if i == len(fids)-1 {
-				atomic.StoreInt64(&logFile.WriteAt, offset)
-			}
-		}
-	}
-	wg := new(sync.WaitGroup)
-	wg.Add(logfile.LogFileTypeNum)
-	for i := 0; i < logfile.LogFileTypeNum; i++ {
-		go iteratorAndHandle(DataType(i), wg)
-	}
-
-	return nil
-}
-
 func (db *BitcaskDB) writeLogEntry(ent *logfile.LogEntry, dataType DataType) (*valuePos, error) {
 	if err := db.initLogFile(dataType); err != nil {
 		log.Println("Failed to initLogFile")
@@ -263,5 +222,46 @@ func (db *BitcaskDB) initLogFile(dataType DataType) error {
 		return err
 	}
 	db.activateLogFile[dataType] = lf
+	return nil
+}
+
+func (db *BitcaskDB) handleLogFileGC() {
+	if db.opts.LogFileGCInterval <= 0 {
+		return
+	}
+
+	ticker := time.NewTicker(db.opts.LogFileGCInterval)
+	defer ticker.Stop()
+
+	quitSig := make(chan os.Signal, 1) // Signal send but do not block for it, channel with buffer is necessary
+	signal.Notify(quitSig, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	for {
+		select {
+		case <-ticker.C:
+			if atomic.LoadInt32(&db.gcState) > 0 {
+				log.Println("log file gc is running, skip it")
+				break
+			}
+
+			for i := String; i < LogFileTypeNum; i++ {
+				go func(dataType DataType) {
+					err := db.doRunGC(dataType, -1, int(db.opts.LogFileGCRatio))
+					if err != nil {
+						log.Printf("log file gc err, dataType: [%v], err: [%v]", dataType, err)
+					}
+				}(i)
+
+			}
+		case <-quitSig:
+			return
+		}
+	}
+}
+
+func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) error {
+	atomic.AddInt32(&db.gcState, 1)
+	defer atomic.AddInt32(&db.gcState, -1)
+
 	return nil
 }
