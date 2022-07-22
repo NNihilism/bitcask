@@ -139,9 +139,7 @@ func EncodeEntry(entry *LogEntry) ([]byte, int) {
 	header[4] = byte(entry.Type)
 	var index = 5
 	index += binary.PutVarint(header[index:], int64(len(entry.Key)))
-
 	index += binary.PutVarint(header[index:], int64(len(entry.Value)))
-
 	index += binary.PutVarint(header[index:], entry.ExpiredAt)
 
 	var size = index + len(entry.Key) + len(entry.Value) // len of header + len of key + len of value

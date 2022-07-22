@@ -32,11 +32,8 @@ func mmap(fd *os.File, write bool, size int64) ([]byte, error) {
 	}
 
 	// Open a file mapping handle.
-	sizelo := uint32(size >> 32)
+	sizelo := uint32(size >> 32) // 0
 	sizehi := uint32(size) & 0xffffffff
-
-	fmt.Println("sizelo:", sizelo)
-	fmt.Println("sizehi:", sizehi)
 
 	handler, err := syscall.CreateFileMapping(syscall.Handle(fd.Fd()), nil,
 		uint32(protect), sizelo, sizehi, nil)

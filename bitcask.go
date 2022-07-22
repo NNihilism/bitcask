@@ -123,6 +123,12 @@ func newStrsIndex() *strIndex {
 	return &strIndex{idxTree: art.NewART(), mu: new(sync.RWMutex)}
 }
 
+func (db *BitcaskDB) getActiveLogFile(dataType DataType) *logfile.LogFile {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	return db.activateLogFile[dataType]
+}
+
 func (db *BitcaskDB) getArchivedLogFile(dataType DataType, fid uint32) *logfile.LogFile {
 	var lf *logfile.LogFile
 	db.mu.RLock()
@@ -282,6 +288,8 @@ func (db *BitcaskDB) handleLogFileGC() {
 	// signal.Notify(quitSig, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	signal.Notify(quitSig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	log.Println("FileGC started successfully")
+
 	for {
 		select {
 		case <-ticker.C:
@@ -300,7 +308,7 @@ func (db *BitcaskDB) handleLogFileGC() {
 
 			}
 		case <-quitSig:
-			log.Println("quit sig...")
+			log.Println("FileGC quit sig...")
 			return
 		}
 	}
@@ -336,6 +344,7 @@ func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) e
 			if err != nil {
 				return err
 			}
+			// false : the archivedFile will be deleted. Do not need to call sendDiscard()
 			if err = db.updateIndexTree(db.strIndex.idxTree, logEntry, pos, false, String); err != nil {
 				return err
 			}
@@ -343,13 +352,21 @@ func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) e
 		return nil
 	}
 
-	activateFile := db.activateLogFile[dataType]
+	activateFile := db.getActiveLogFile(dataType)
+	if activateFile == nil {
+		return nil
+	}
+
+	if err := db.discards[dataType].sync(); err != nil {
+		return err
+	}
 
 	ccl, err := db.discards[dataType].getCCL(activateFile.Fid, db.opts.LogFileGCRatio)
 	if err != nil {
 		log.Printf("doRunGC err:%v", err)
 		return err
 	}
+
 	for _, fid := range ccl {
 		if specifiedFid >= 0 && uint32(specifiedFid) != fid {
 			continue

@@ -43,7 +43,7 @@ func newDiscard(path, name string, bufferSize int) (*discard, error) {
 	var offset int64
 
 	for {
-		buf := make([]byte, 8)
+		buf := make([]byte, discardRecordSize)
 		if _, err := file.Read(buf, offset); err != nil {
 			if err == logfile.ErrEndOfEntry || err == io.EOF {
 				break
@@ -110,7 +110,7 @@ func (d *discard) incr(fid uint32, delta int) {
 		buf = make([]byte, 4)
 		_, err = d.file.Read(buf, offset)
 		if err != nil {
-			log.Printf("incr value in discard err :%v", err)
+			log.Printf("read in incr() value in discard.go err :%v", err)
 			return
 		}
 		v := binary.LittleEndian.Uint32(buf)
@@ -120,7 +120,7 @@ func (d *discard) incr(fid uint32, delta int) {
 	}
 
 	if _, err = d.file.Write(buf, offset); err != nil {
-		log.Printf("incr value in discard err :%v", err)
+		log.Printf("write in incr() in discard.go err :%v", err)
 		return
 	}
 }
@@ -213,5 +213,8 @@ func (d *discard) clear(fid uint32) {
 		d.freeList = append(d.freeList, offset)
 		delete(d.location, fid)
 	}
+}
 
+func (d *discard) sync() error {
+	return d.file.Sync()
 }
