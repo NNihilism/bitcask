@@ -35,7 +35,9 @@ func (db *BitcaskDB) buildStrsIndex(ent *logfile.LogEntry, pos *valuePos) {
 	db.strIndex.idxTree.Put(ent.Key, idxNode)
 }
 
-func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree, entry *logfile.LogEntry, pos *valuePos) error {
+func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree,
+	entry *logfile.LogEntry, pos *valuePos, sendDiscard bool, dType DataType) error {
+
 	idxNode := &indexNode{fid: pos.fid, offset: pos.offset, entrySize: pos.entrySize}
 	// in KeyValueMemMode, both key and value will store in memory.
 	if db.opts.IndexMode == options.KeyValueMemMode {
@@ -44,7 +46,10 @@ func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree, entry *logf
 	if entry.ExpiredAt != 0 {
 		idxNode.expiredAt = entry.ExpiredAt
 	}
-	idxTree.Put(entry.Key, idxNode)
+	oldVal, updated := idxTree.Put(entry.Key, idxNode)
+	if sendDiscard {
+		db.sendDiscard(oldVal, updated, dType)
+	}
 	return nil
 }
 

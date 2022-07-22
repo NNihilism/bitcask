@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ type (
 	BitcaskDB struct {
 		activateLogFile map[DataType]*logfile.LogFile
 		archivedLogFile map[DataType]archivedFiles
+		discards        map[DataType]*discard
 		fidMap          map[DataType][]uint32 // only used at startup, never change even though fid change.
 		strIndex        *strIndex
 		opts            options.Options
@@ -70,7 +72,8 @@ var (
 type DataType = int8
 
 const (
-	LogFileTypeNum = 1
+	LogFileTypeNum  = 1
+	discardFilePath = "DISCARD"
 )
 
 // Support String right now.
@@ -102,6 +105,10 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 	}
 
 	if err := db.LoadIndexFromLogFiles(); err != nil {
+		return nil, err
+	}
+
+	if err := db.initDiscard(); err != nil {
 		return nil, err
 	}
 
@@ -198,6 +205,7 @@ func (db *BitcaskDB) writeLogEntry(ent *logfile.LogEntry, dataType DataType) (*v
 			return nil, err
 		}
 		db.activateLogFile[dataType] = lf
+		db.discards[dataType].setTotal(lf.Fid, uint32(opts.LogFileSizeThreshold))
 		activeLogFile = lf
 		db.mu.Unlock()
 	}
@@ -205,6 +213,7 @@ func (db *BitcaskDB) writeLogEntry(ent *logfile.LogEntry, dataType DataType) (*v
 	if err := activeLogFile.Write(entryBuf); err != nil {
 		return nil, err
 	}
+
 	if opts.Sync {
 		if err := activeLogFile.Sync(); err != nil {
 			return nil, err
@@ -217,11 +226,35 @@ func (db *BitcaskDB) initLogFile(dataType DataType) error {
 	if db.activateLogFile[dataType] != nil {
 		return nil
 	}
-	lf, err := logfile.GetLogFile(db.opts.DBPath, logfile.FileType(dataType), logfile.InitialLogFileId, db.opts.LogFileSizeThreshold)
+	opts := db.opts
+	lf, err := logfile.GetLogFile(opts.DBPath, logfile.FileType(dataType), logfile.InitialLogFileId, opts.LogFileSizeThreshold)
 	if err != nil {
 		return err
 	}
+	db.discards[dataType].setTotal(lf.Fid, uint32(opts.LogFileSizeThreshold))
 	db.activateLogFile[dataType] = lf
+	return nil
+}
+
+func (db *BitcaskDB) initDiscard() error {
+	discardPath := filepath.Join(db.opts.DBPath, discardFilePath)
+	if !util.PathExist(discardPath) {
+		if err := os.MkdirAll(discardPath, os.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	discards := make(map[DataType]*discard)
+	for i := String; i < LogFileTypeNum; i++ {
+		name := logfile.FileNamesMap[logfile.FileType(i)] + discardFileName
+		d, err := newDiscard(discardPath, name, db.opts.DiscardBufferSize)
+		if err != nil {
+			log.Printf("init discard err:%v", err)
+			return err
+		}
+		discards[i] = d
+	}
+	db.discards = discards
 	return nil
 }
 
@@ -234,7 +267,8 @@ func (db *BitcaskDB) handleLogFileGC() {
 	defer ticker.Stop()
 
 	quitSig := make(chan os.Signal, 1) // Signal send but do not block for it, channel with buffer is necessary
-	signal.Notify(quitSig, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	// signal.Notify(quitSig, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	signal.Notify(quitSig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	for {
 		select {
@@ -254,6 +288,7 @@ func (db *BitcaskDB) handleLogFileGC() {
 
 			}
 		case <-quitSig:
+			log.Println("quit sig...")
 			return
 		}
 	}
@@ -264,4 +299,19 @@ func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) e
 	defer atomic.AddInt32(&db.gcState, -1)
 
 	return nil
+}
+
+func (db *BitcaskDB) sendDiscard(oldVal interface{}, updated bool, dType DataType) {
+	if oldVal == nil || !updated {
+		return
+	}
+	idxNode, _ := oldVal.(*indexNode)
+	if idxNode == nil {
+		return
+	}
+	select {
+	case db.discards[dType].valChan <- idxNode:
+	default:
+		log.Println("send to discard chan fail!")
+	}
 }

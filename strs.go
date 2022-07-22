@@ -21,7 +21,7 @@ func (db *BitcaskDB) Set(key, value []byte) error {
 		return err
 	}
 	// update index
-	return db.updateIndexTree(db.strIndex.idxTree, entry, valuePos)
+	return db.updateIndexTree(db.strIndex.idxTree, entry, valuePos, true, String)
 }
 
 // SetEX set key to hold the string value and set key to timeout after the given duration.
@@ -40,7 +40,7 @@ func (db *BitcaskDB) SetEX(key, value []byte, duration time.Duration) error {
 		return err
 	}
 	// update index
-	return db.updateIndexTree(db.strIndex.idxTree, entry, valuePos)
+	return db.updateIndexTree(db.strIndex.idxTree, entry, valuePos, true, String)
 }
 
 // SetNX sets the key-value pair if it is not exist. It returns nil if the key already exists.
@@ -64,7 +64,7 @@ func (db *BitcaskDB) SetNX(key, value []byte) error {
 		return err
 	}
 	// update index
-	return db.updateIndexTree(db.strIndex.idxTree, entry, valuePos)
+	return db.updateIndexTree(db.strIndex.idxTree, entry, valuePos, true, String)
 }
 
 // Set set key to hold the string value. If key already holds a value, it is overwritten.
@@ -84,7 +84,7 @@ func (db *BitcaskDB) MSet(args ...[]byte) error {
 			return err
 		}
 		// update index
-		err = db.updateIndexTree(db.strIndex.idxTree, entry, valuePos)
+		err = db.updateIndexTree(db.strIndex.idxTree, entry, valuePos, true, String)
 		if err != nil {
 			return err
 		}
@@ -111,7 +111,7 @@ func (db *BitcaskDB) Append(key, value []byte) error {
 	if err != nil {
 		return err
 	}
-	return db.updateIndexTree(db.strIndex.idxTree, entry, pos)
+	return db.updateIndexTree(db.strIndex.idxTree, entry, pos, true, String)
 }
 
 // Get get the value of key.
@@ -129,15 +129,20 @@ func (db *BitcaskDB) Delete(key []byte) error {
 
 	entry := &logfile.LogEntry{Key: key, Type: logfile.TypeDelete}
 
-	_, err := db.writeLogEntry(entry, String)
+	pos, err := db.writeLogEntry(entry, String)
 	if err != nil {
 		return err
 	}
 
-	db.strIndex.idxTree.Delete(key)
-	/*
-		The part of Discard is ignored...
-	*/
+	oldVal, update := db.strIndex.idxTree.Delete(key)
+
+	db.sendDiscard(oldVal, update, String)
+
+	// The deleted entry itself is also invalid.
+	_, size := logfile.EncodeEntry(entry)
+	idxNode := &indexNode{fid: pos.fid, entrySize: size}
+	db.sendDiscard(idxNode, update, String)
+
 	return nil
 }
 
@@ -236,7 +241,7 @@ func (db *BitcaskDB) incrDecrBy(key []byte, incr int64) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	err = db.updateIndexTree(db.strIndex.idxTree, ent, pos)
+	err = db.updateIndexTree(db.strIndex.idxTree, ent, pos, true, String)
 	if err != nil {
 		return 0, err
 	}

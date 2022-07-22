@@ -55,8 +55,7 @@ type Options struct {
 	// Entry size will be saved in the discard file, recording the invalid size in a log file, and be used when log file gc is running.
 	// This option represents the size of that channel.
 	// If you got errors like `send discard chan fail`, you can increase this option to avoid it.
-	// DiscardBufferSize int
-
+	DiscardBufferSize int
 }
 
 func DefaultOptions(path string) Options {
@@ -65,6 +64,7 @@ func DefaultOptions(path string) Options {
 		IndexMode:            KeyValueMemMode,
 		LogFileGCInterval:    time.Hour * 8,
 		LogFileGCRatio:       0.5,
-		LogFileSizeThreshold: 512 << 10, // 512*2e20B = 512MB
+		LogFileSizeThreshold: 512 << 10, // 512*2e10B = 512KB
+		DiscardBufferSize:    8 << 20,
 	}
 }
