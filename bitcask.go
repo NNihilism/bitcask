@@ -6,6 +6,8 @@ import (
 	"bitcask/options"
 	"bitcask/util"
 	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -119,6 +121,16 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 
 func newStrsIndex() *strIndex {
 	return &strIndex{idxTree: art.NewART(), mu: new(sync.RWMutex)}
+}
+
+func (db *BitcaskDB) getArchivedLogFile(dataType DataType, fid uint32) *logfile.LogFile {
+	var lf *logfile.LogFile
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	if db.archivedLogFile[dataType] != nil {
+		lf = db.archivedLogFile[dataType][fid]
+	}
+	return lf
 }
 
 func (db *BitcaskDB) loadLogFile() error {
@@ -297,6 +309,88 @@ func (db *BitcaskDB) handleLogFileGC() {
 func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) error {
 	atomic.AddInt32(&db.gcState, 1)
 	defer atomic.AddInt32(&db.gcState, -1)
+
+	maybeRewriteStrs := func(logEntry *logfile.LogEntry, fid uint32, offset int64) error {
+		db.strIndex.mu.Lock()
+		defer db.strIndex.mu.Unlock()
+
+		if logEntry.Type == logfile.TypeDelete {
+			return nil
+		}
+		ts := time.Now().Unix()
+		if logEntry.ExpiredAt != 0 && logEntry.ExpiredAt < ts {
+			return nil
+		}
+
+		rawVal := db.strIndex.idxTree.Get(logEntry.Key)
+		if rawVal == nil {
+			return nil
+		}
+		idxNode, _ := rawVal.(*indexNode)
+		if idxNode == nil {
+			return nil
+		}
+
+		if idxNode.fid == fid && idxNode.offset == offset {
+			pos, err := db.writeLogEntry(logEntry, String)
+			if err != nil {
+				return err
+			}
+			if err = db.updateIndexTree(db.strIndex.idxTree, logEntry, pos, false, String); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	activateFile := db.activateLogFile[dataType]
+
+	ccl, err := db.discards[dataType].getCCL(activateFile.Fid, db.opts.LogFileGCRatio)
+	if err != nil {
+		log.Printf("doRunGC err:%v", err)
+		return err
+	}
+	for _, fid := range ccl {
+		if specifiedFid >= 0 && uint32(specifiedFid) != fid {
+			continue
+		}
+
+		archivedFile := db.getArchivedLogFile(dataType, fid)
+		if archivedFile == nil {
+			continue
+		}
+
+		for {
+			var offset int64
+			logEntry, eSize, err := archivedFile.ReadLogEntry(offset)
+			if err != nil {
+				if err == logfile.ErrEndOfEntry || err == io.EOF {
+					break
+				}
+				return err
+			}
+
+			switch dataType {
+			case String:
+				err = maybeRewriteStrs(logEntry, fid, offset)
+			}
+
+			if err != nil {
+				return err
+			}
+
+			offset += eSize
+		}
+
+		// delete older log file.
+		db.mu.Lock()
+		delete(db.archivedLogFile[dataType], fid)
+		err = archivedFile.Delete()
+		fmt.Printf("delete archived file err:%v", err)
+		db.mu.Unlock()
+		// clear discard state.
+		db.discards[dataType].clear(fid)
+	}
 
 	return nil
 }

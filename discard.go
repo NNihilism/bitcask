@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"path/filepath"
+	"sort"
 	"sync"
 )
 
@@ -94,21 +95,30 @@ func (d *discard) incrDiscard(fid uint32, delta int) {
 // +-------+--------------+----------------+  +-------+--------------+----------------+
 // 0-------4--------------8---------------12  12------16------------20----------------24
 func (d *discard) incr(fid uint32, delta int) {
+	d.Lock()
+	defer d.Unlock()
+
 	offset, err := d.alloc(fid)
 	if err != nil {
 		log.Printf("discard file allocate err : %+v", err)
 		return
 	}
 
-	offset += 8
-	buf := make([]byte, 4)
-	_, err = d.file.Read(buf, offset)
-	if err != nil {
-		log.Printf("incr value in discard err :%v", err)
-		return
+	var buf []byte
+	if delta > 0 {
+		offset += 8
+		buf = make([]byte, 4)
+		_, err = d.file.Read(buf, offset)
+		if err != nil {
+			log.Printf("incr value in discard err :%v", err)
+			return
+		}
+		v := binary.LittleEndian.Uint32(buf)
+		binary.LittleEndian.PutUint32(buf, v+uint32(delta))
+	} else {
+		buf = make([]byte, discardRecordSize)
 	}
-	v := binary.LittleEndian.Uint32(buf)
-	binary.LittleEndian.PutUint32(buf, v+uint32(delta))
+
 	if _, err = d.file.Write(buf, offset); err != nil {
 		log.Printf("incr value in discard err :%v", err)
 		return
@@ -151,4 +161,57 @@ func (d *discard) setTotal(fid uint32, totalSize uint32) {
 		log.Printf("write discard file err: %+v", err)
 		return
 	}
+}
+
+// CCL means compaction cnadidate list.
+// iterate and find the file with most discarded data,
+// there are 682 records at most, no need to worry about the performance.
+func (d *discard) getCCL(activeFid uint32, ratio float64) ([]uint32, error) {
+	d.Lock()
+	defer d.Unlock()
+
+	var ccl []uint32
+	for fid, offset := range d.location {
+		if fid == activeFid {
+			continue
+		}
+		buf := make([]byte, discardRecordSize)
+		_, err := d.file.Read(buf, offset)
+		if err != nil {
+			if err == io.EOF || err == logfile.ErrEndOfEntry {
+				break
+			}
+			return nil, err
+		}
+
+		total := binary.LittleEndian.Uint32(buf[4:8])
+		discard := binary.LittleEndian.Uint32(buf[8:12])
+
+		var curRatio float64
+		if total != 0 && discard != 0 {
+			curRatio = float64(discard) / float64(total)
+		}
+		if curRatio > ratio {
+			ccl = append(ccl, fid)
+		}
+	}
+
+	// sort in ascending order, guarantee the older file will compact firstly.
+	sort.Slice(ccl, func(i, j int) bool {
+		return ccl[i] < ccl[j]
+	})
+	return ccl, nil
+}
+
+func (d *discard) clear(fid uint32) {
+	d.incr(fid, -1)
+
+	d.Lock()
+	defer d.Unlock()
+
+	if offset, ok := d.location[fid]; ok {
+		d.freeList = append(d.freeList, offset)
+		delete(d.location, fid)
+	}
+
 }

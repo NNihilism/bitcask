@@ -214,3 +214,7 @@ func (lf *LogFile) Write(buf []byte) error {
 func (lf *LogFile) Sync() error {
 	return lf.IoSelector.Sync()
 }
+
+func (lf *LogFile) Delete() error {
+	return lf.IoSelector.Delete()
+}
