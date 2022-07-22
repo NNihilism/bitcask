@@ -426,3 +426,35 @@ func (db *BitcaskDB) sendDiscard(oldVal interface{}, updated bool, dType DataTyp
 		log.Println("send to discard chan fail!")
 	}
 }
+
+func (db *BitcaskDB) Close() error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	// close and sync the active file.
+	for _, activateFile := range db.activateLogFile {
+		if err := activateFile.Sync(); err != nil {
+			return err
+		}
+		if err := activateFile.Close(); err != nil {
+			return err
+		}
+	}
+
+	// close the archived files.
+	for _, archived := range db.archivedLogFile {
+		for _, file := range archived {
+			if err := file.Close(); err != nil {
+				return err
+			}
+		}
+	}
+
+	// close discard channel.
+	for _, dis := range db.discards {
+		dis.closeChan()
+	}
+	db.strIndex = nil
+
+	return nil
+}

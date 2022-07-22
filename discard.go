@@ -161,6 +161,7 @@ func (d *discard) setTotal(fid uint32, totalSize uint32) {
 		log.Printf("write discard file err: %+v", err)
 		return
 	}
+	//d.sync()
 }
 
 // CCL means compaction cnadidate list.
@@ -217,4 +218,8 @@ func (d *discard) clear(fid uint32) {
 
 func (d *discard) sync() error {
 	return d.file.Sync()
+}
+
+func (d *discard) closeChan() {
+	d.once.Do(func() { close(d.valChan) })
 }
