@@ -14,8 +14,9 @@ const (
 
 	// TypeDelete represents entry type is delete.
 	TypeDelete
+
 	// TypeListMeta represents entry is list meta.
-	// TypeListMeta
+	TypeListMeta
 )
 
 // LogEntry is the data will be appended in log file.

@@ -12,11 +12,20 @@ import (
 	"time"
 )
 
+// Support String right now.
+const (
+	String DataType = iota
+	List
+)
+
 func (db *BitcaskDB) buildIndex(dataType DataType, ent *logfile.LogEntry, pos *valuePos) {
 	switch dataType {
 	case String:
 		db.buildStrsIndex(ent, pos)
+	case List:
+		db.buildListIndex(ent, pos)
 	}
+
 }
 
 func (db *BitcaskDB) buildStrsIndex(ent *logfile.LogEntry, pos *valuePos) {
@@ -33,6 +42,10 @@ func (db *BitcaskDB) buildStrsIndex(ent *logfile.LogEntry, pos *valuePos) {
 		idxNode.value = ent.Value
 	}
 	db.strIndex.idxTree.Put(ent.Key, idxNode)
+}
+
+func (db *BitcaskDB) buildListIndex(ent *logfile.LogEntry, pos *valuePos) {
+
 }
 
 func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree,

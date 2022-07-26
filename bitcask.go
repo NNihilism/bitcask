@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -31,6 +32,7 @@ type (
 		discards        map[DataType]*discard
 		fidMap          map[DataType][]uint32 // only used at startup, never change even though fid change.
 		strIndex        *strIndex
+		listIndex       *listIndex
 		opts            options.Options
 		mu              *sync.RWMutex
 		gcState         int32
@@ -43,6 +45,10 @@ type (
 	strIndex struct {
 		mu      *sync.RWMutex
 		idxTree *art.AdaptiveRadixTree
+	}
+	listIndex struct {
+		mu    *sync.RWMutex
+		trees map[string]*art.AdaptiveRadixTree
 	}
 	indexNode struct {
 		value     []byte
@@ -74,13 +80,9 @@ var (
 type DataType = int8
 
 const (
-	LogFileTypeNum  = 1
+	LogFileTypeNum  = 2
 	discardFilePath = "DISCARD"
-)
-
-// Support String right now.
-const (
-	String DataType = iota
+	initialListSeq  = math.MaxUint32 / 2
 )
 
 // Open a bitckaskdb instance. You must call close after using it.
@@ -98,6 +100,7 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 		archivedLogFile: make(map[DataType]archivedFiles),
 		opts:            opts,
 		strIndex:        newStrsIndex(),
+		listIndex:       newListIndex(),
 		mu:              new(sync.RWMutex),
 	}
 
@@ -121,6 +124,9 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 
 func newStrsIndex() *strIndex {
 	return &strIndex{idxTree: art.NewART(), mu: new(sync.RWMutex)}
+}
+func newListIndex() *listIndex {
+	return &listIndex{trees: make(map[string]*art.AdaptiveRadixTree), mu: new(sync.RWMutex)}
 }
 
 func (db *BitcaskDB) getActiveLogFile(dataType DataType) *logfile.LogFile {
@@ -450,6 +456,15 @@ func (db *BitcaskDB) Close() error {
 		}
 	}
 
+	// close the mmap.
+	for _, discard := range db.discards {
+		if err := discard.sync(); err != nil {
+			return err
+		}
+		if err := discard.close(); err != nil {
+			return err
+		}
+	}
 	// close discard channel.
 	for _, dis := range db.discards {
 		dis.closeChan()

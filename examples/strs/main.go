@@ -53,7 +53,7 @@ func main() {
 	fmt.Println("wake up")
 	_, err = db.Get(key)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("err : ", err)
 	}
 
 	// MSet
@@ -71,5 +71,7 @@ func main() {
 
 	// Count
 	fmt.Println("count:", db.Count())
+
+	db.Close()
 
 }

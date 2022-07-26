@@ -27,3 +27,11 @@
 将LogEntry记录到磁盘文件中时，使用了variant算法来存储entry的k/v长度，能以较小的字节存储较小的数字（自然数？）。
 #### 内存存储
 内存中存储的主要是一个前缀树，用来加速对记录的查找操作。分为***KeyValueMemMode***以及***KeyOnlyMemModel***两种模式，在第一个模式下，根据*key*能够直接读取到*value*，而使用后者时，只能根据*key*获取到对应的*logFileId*以及相应的*offset*,需要在磁盘中找到对应的*logFile*并读取*value*。
+##### String
+索引树中存储的节点格式如:  
+- key----value  
+##### List
+由于List为双向链表，所以一颗索引树中存储了两种不同的节点。  
+- Key---[LSeq, Rseq]用于维护Key对应列表的左右索引.  
+- Seq+Key---Val,用于维护Key对应的列表元素以及该元素所在的索引.  
+上述两种操作都会引发LogEntry的写入操作，且不区分写入的文件，即都会记录在log.List.xxxx文件中。

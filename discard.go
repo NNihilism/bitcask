@@ -223,3 +223,7 @@ func (d *discard) sync() error {
 func (d *discard) closeChan() {
 	d.once.Do(func() { close(d.valChan) })
 }
+
+func (d *discard) close() error {
+	return d.file.Close()
+}
