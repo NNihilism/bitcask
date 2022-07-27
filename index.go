@@ -45,6 +45,27 @@ func (db *BitcaskDB) buildStrsIndex(ent *logfile.LogEntry, pos *valuePos) {
 }
 
 func (db *BitcaskDB) buildListIndex(ent *logfile.LogEntry, pos *valuePos) {
+	key := ent.Key
+	if ent.Type != logfile.TypeListMeta {
+		key = key[4:]
+	}
+
+	if db.listIndex.trees[string(key)] == nil {
+		db.listIndex.trees[string(key)] = art.NewART()
+	}
+	idxTree := db.listIndex.trees[string(key)]
+	if ent.Type == logfile.TypeDelete {
+		idxTree.Delete(ent.Key)
+		return
+	}
+	idxNode := &indexNode{fid: pos.fid, offset: pos.offset, entrySize: pos.entrySize}
+	if db.opts.IndexMode == options.KeyValueMemMode {
+		idxNode.value = ent.Value
+	}
+	if ent.ExpiredAt != 0 {
+		idxNode.expiredAt = ent.ExpiredAt
+	}
+	idxTree.Put(ent.Key, idxNode)
 
 }
 
@@ -150,8 +171,7 @@ func (db *BitcaskDB) LoadIndexFromLogFiles() error {
 					}
 					log.Fatalf("read log entry from file err, failed to open db")
 				}
-
-				pos := &valuePos{fid: fid, offset: offset}
+				pos := &valuePos{fid: fid, offset: offset, entrySize: int(eSize)}
 				db.buildIndex(dataType, entry, pos)
 				offset += eSize
 			}

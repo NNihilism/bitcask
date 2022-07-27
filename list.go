@@ -137,6 +137,129 @@ func (db *BitcaskDB) LLen(key []byte) int {
 	return int(tailSeq - headSeq - 1)
 }
 
+// LIndex returns the element at index in the list stored at key.
+// If index is out of range, it returns nil.
+func (db *BitcaskDB) LIndex(key []byte, index int) ([]byte, error) {
+	db.listIndex.mu.RLock()
+	defer db.listIndex.mu.RUnlock()
+
+	idxTree := db.listIndex.trees[string(key)]
+	if idxTree == nil {
+		return nil, nil
+	}
+
+	headSeq, tailSeq, err := db.ListMeta(idxTree, key)
+	if err != nil {
+		return nil, err
+	}
+
+	seq, err := db.listSequence(headSeq, tailSeq, index)
+	if err != nil {
+		return nil, err
+	}
+	if seq >= tailSeq || seq <= headSeq {
+		return nil, ErrWrongIndex
+	}
+
+	encKey := db.encodeListKey(key, seq)
+	val, err := db.getVal(idxTree, encKey, List)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+// LSet Sets the list element at index to element.
+func (db *BitcaskDB) LSet(key []byte, index int, value []byte) error {
+	db.listIndex.mu.Lock()
+	defer db.listIndex.mu.Unlock()
+
+	idxTree := db.listIndex.trees[string(key)]
+	if idxTree == nil {
+		return ErrKeyNotFound
+	}
+
+	headSeq, tailSeq, err := db.ListMeta(idxTree, key)
+	if err != nil {
+		return err
+	}
+	seq, err := db.listSequence(headSeq, tailSeq, index)
+	if err != nil {
+		return err
+	}
+	if seq >= tailSeq || seq <= headSeq {
+		return ErrWrongIndex
+	}
+
+	encKey := db.encodeListKey(key, seq)
+	ent := &logfile.LogEntry{Key: encKey, Value: value}
+	pos, err := db.writeLogEntry(ent, List)
+	if err != nil {
+		return err
+	}
+	return db.updateIndexTree(idxTree, ent, pos, true, List)
+}
+
+// LRange returns the specified elements of the list stored at key.
+// The offsets start and stop are zero-based indexes, with 0 being the first element
+// of the list (the head of the list), 1 being the next element and so on.
+// These offsets can also be negative numbers indicating offsets starting at the end of the list.
+// For example, -1 is the last element of the list, -2 the penultimate, and so on.
+// If start is larger than the end of the list, an empty list is returned.
+// If stop is larger than the actual end of the list, Redis will treat it like the last element of the list.
+func (db *BitcaskDB) LRange(key []byte, start, end int) (values [][]byte, err error) {
+	db.listIndex.mu.Lock()
+	defer db.listIndex.mu.Unlock()
+
+	idxTree := db.listIndex.trees[string(key)]
+	if idxTree == nil {
+		err = ErrKeyNotFound
+		return
+	}
+
+	headSeq, tailSeq, err := db.ListMeta(idxTree, key)
+	if err != nil {
+		return
+	}
+
+	startSeq, err := db.listSequence(headSeq, tailSeq, start)
+	if err != nil {
+		return
+	}
+
+	endSeq, err := db.listSequence(headSeq, tailSeq, start)
+	if err != nil {
+		return
+	}
+
+	// normalize startSeq
+	if startSeq <= headSeq {
+		startSeq = headSeq + 1
+	}
+	// normalize endSeq
+	if endSeq >= tailSeq {
+		endSeq = tailSeq - 1
+	}
+
+	if startSeq >= tailSeq || endSeq <= headSeq || startSeq > endSeq {
+		err = ErrWrongIndex
+		return
+	}
+
+	for seq := startSeq; seq <= endSeq; seq++ {
+		var val []byte
+		encKey := db.encodeListKey(key, seq)
+		val, err = db.getVal(idxTree, encKey, List)
+		if err != nil {
+			return
+		}
+		values = append(values, val)
+	}
+
+	return
+
+}
+
 func (db *BitcaskDB) popInternal(key []byte, isLeft bool) ([]byte, error) {
 	idxTree := db.listIndex.trees[string(key)]
 	if idxTree == nil {
@@ -261,4 +384,16 @@ func (db *BitcaskDB) saveListMeta(idxTree *art.AdaptiveRadixTree, key []byte, he
 		return err
 	}
 	return db.updateIndexTree(idxTree, ent, pos, true, List)
+}
+
+// listSequence just convert logical index to physical seq.
+// whether physical seq is legal or not, just convert it
+func (db *BitcaskDB) listSequence(headSeq, tailSeq uint32, index int) (uint32, error) {
+	var seq uint32
+	if index >= 0 {
+		seq = headSeq + uint32(index) + 1
+	} else {
+		seq = tailSeq - uint32(-index)
+	}
+	return seq, nil
 }

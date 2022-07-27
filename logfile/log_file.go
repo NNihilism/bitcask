@@ -41,14 +41,17 @@ var (
 
 const (
 	Strs FileType = iota
+	List
 )
 
 var (
 	FileTypesMap = map[string]FileType{
 		"strs": Strs,
+		"list": List,
 	}
 	FileNamesMap = map[FileType]string{
 		Strs: "log.strs.",
+		List: "log.list.",
 	}
 )
 

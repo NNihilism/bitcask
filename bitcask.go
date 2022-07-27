@@ -74,6 +74,9 @@ var (
 
 	// ErrIntegerOverflow overflows int64 limitations
 	ErrIntegerOverflow = errors.New("increment or decrement overflow")
+
+	// ErrWrongIndex index is out of range
+	ErrWrongIndex = errors.New("index is out of range")
 )
 
 // DataType Define the data structure type.
