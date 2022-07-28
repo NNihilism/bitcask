@@ -22,8 +22,8 @@ type FileType int8
 
 const (
 	FilePrefix       = "log."
-	InitialLogFileId = 0    // InitialLogFileId initial log file id: 0.
-	FilePerm         = 0644 // FilePerm default permission of the newly created log file.
+	InitialLogFileId = 0 // InitialLogFileId initial log file id: 0.
+	// FilePerm         = 0644 // FilePerm default permission of the newly created log file.
 )
 
 var (
@@ -42,16 +42,19 @@ var (
 const (
 	Strs FileType = iota
 	List
+	Hash
 )
 
 var (
 	FileTypesMap = map[string]FileType{
 		"strs": Strs,
 		"list": List,
+		"hash": Hash,
 	}
 	FileNamesMap = map[FileType]string{
 		Strs: "log.strs.",
 		List: "log.list.",
+		Hash: "log.hash.",
 	}
 )
 

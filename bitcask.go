@@ -5,6 +5,7 @@ import (
 	"bitcask/logfile"
 	"bitcask/options"
 	"bitcask/util"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -33,6 +34,7 @@ type (
 		fidMap          map[DataType][]uint32 // only used at startup, never change even though fid change.
 		strIndex        *strIndex
 		listIndex       *listIndex
+		hashIndex       *hashIndex // Hash indexes.
 		opts            options.Options
 		mu              *sync.RWMutex
 		gcState         int32
@@ -47,6 +49,10 @@ type (
 		idxTree *art.AdaptiveRadixTree
 	}
 	listIndex struct {
+		mu    *sync.RWMutex
+		trees map[string]*art.AdaptiveRadixTree
+	}
+	hashIndex struct {
 		mu    *sync.RWMutex
 		trees map[string]*art.AdaptiveRadixTree
 	}
@@ -83,9 +89,10 @@ var (
 type DataType = int8
 
 const (
-	LogFileTypeNum  = 2
-	discardFilePath = "DISCARD"
-	initialListSeq  = math.MaxUint32 / 2
+	LogFileTypeNum   = 3
+	discardFilePath  = "DISCARD"
+	initialListSeq   = math.MaxUint32 / 2
+	encodeHeaderSize = 10
 )
 
 // Open a bitckaskdb instance. You must call close after using it.
@@ -104,6 +111,7 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 		opts:            opts,
 		strIndex:        newStrsIndex(),
 		listIndex:       newListIndex(),
+		hashIndex:       newHashIndex(),
 		mu:              new(sync.RWMutex),
 	}
 
@@ -130,6 +138,9 @@ func newStrsIndex() *strIndex {
 }
 func newListIndex() *listIndex {
 	return &listIndex{trees: make(map[string]*art.AdaptiveRadixTree), mu: new(sync.RWMutex)}
+}
+func newHashIndex() *hashIndex {
+	return &hashIndex{trees: make(map[string]*art.AdaptiveRadixTree), mu: new(sync.RWMutex)}
 }
 
 func (db *BitcaskDB) getActiveLogFile(dataType DataType) *logfile.LogFile {
@@ -285,6 +296,44 @@ func (db *BitcaskDB) initDiscard() error {
 	return nil
 }
 
+func (db *BitcaskDB) encodeKey(key, subKey []byte) []byte {
+	header := make([]byte, encodeHeaderSize)
+	var index int
+	index += binary.PutUvarint(header, uint64(len(key)))
+	index += binary.PutUvarint(header, uint64(len(subKey)))
+	length := len(key) + len(subKey)
+	if length > 0 {
+		buf := make([]byte, length+index)
+		copy(buf, header[:index])
+		copy(buf[index:index+len(key)], key)
+		copy(buf[index+len(key):], subKey)
+	}
+	return header[:index]
+}
+
+func (db *BitcaskDB) decodeKey(buf []byte) ([]byte, []byte) {
+	/*
+		var index int
+		keySize, i := binary.Varint(key[index:])
+		index += i
+		_, i = binary.Varint(key[index:])
+		index += i
+		sep := index + int(keySize)
+		return key[index:sep], key[sep:]
+	*/
+	var offset int
+	keySize, n := binary.Uvarint(buf[offset:])
+	offset += n
+	_, n = binary.Uvarint(buf[offset:])
+	offset += n
+
+	sep := offset + int(keySize)
+	key := append([]byte{}, buf[offset:sep]...)
+	subKey := append([]byte{}, buf[sep:]...)
+
+	return key, subKey
+
+}
 func (db *BitcaskDB) handleLogFileGC() {
 	if db.opts.LogFileGCInterval <= 0 {
 		return

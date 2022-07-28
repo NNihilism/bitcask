@@ -16,6 +16,7 @@ import (
 const (
 	String DataType = iota
 	List
+	Hash
 )
 
 func (db *BitcaskDB) buildIndex(dataType DataType, ent *logfile.LogEntry, pos *valuePos) {
@@ -24,6 +25,8 @@ func (db *BitcaskDB) buildIndex(dataType DataType, ent *logfile.LogEntry, pos *v
 		db.buildStrsIndex(ent, pos)
 	case List:
 		db.buildListIndex(ent, pos)
+	case Hash:
+		db.buildHashIndex(ent, pos)
 	}
 
 }
@@ -69,6 +72,9 @@ func (db *BitcaskDB) buildListIndex(ent *logfile.LogEntry, pos *valuePos) {
 
 }
 
+func (db *BitcaskDB) buildHashIndex(ent *logfile.LogEntry, pos *valuePos) {
+
+}
 func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree,
 	entry *logfile.LogEntry, pos *valuePos, sendDiscard bool, dType DataType) error {
 
