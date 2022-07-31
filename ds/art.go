@@ -52,3 +52,7 @@ func (art *AdaptiveRadixTree) PrefixScan(prefix []byte, count int) (keys [][]byt
 	}
 	return
 }
+
+func (art *AdaptiveRadixTree) Iterator() goart.Iterator {
+	return art.tree.Iterator()
+}

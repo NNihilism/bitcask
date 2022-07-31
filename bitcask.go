@@ -83,6 +83,9 @@ var (
 
 	// ErrWrongIndex index is out of range
 	ErrWrongIndex = errors.New("index is out of range")
+
+	// ErrWrongValueType value is not a number
+	ErrWrongValueType = errors.New("value is not an integer")
 )
 
 // DataType Define the data structure type.
@@ -334,6 +337,7 @@ func (db *BitcaskDB) decodeKey(buf []byte) ([]byte, []byte) {
 	return key, subKey
 
 }
+
 func (db *BitcaskDB) handleLogFileGC() {
 	if db.opts.LogFileGCInterval <= 0 {
 		return
