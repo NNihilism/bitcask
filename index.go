@@ -73,8 +73,31 @@ func (db *BitcaskDB) buildListIndex(ent *logfile.LogEntry, pos *valuePos) {
 }
 
 func (db *BitcaskDB) buildHashIndex(ent *logfile.LogEntry, pos *valuePos) {
+	encKey := ent.Key
+	// fmt.Println(len(encKey))
+	key, _ := db.decodeKey(encKey)
+
+	if db.hashIndex.trees[string(key)] == nil {
+		db.hashIndex.trees[string(key)] = art.NewART()
+	}
+
+	idxTree := db.hashIndex.trees[string(key)]
+
+	if ent.Type == logfile.TypeDelete {
+		idxTree.Delete(ent.Key)
+		return
+	}
+	idxNode := &indexNode{fid: pos.fid, offset: pos.offset, entrySize: pos.entrySize}
+	if db.opts.IndexMode == options.KeyValueMemMode {
+		idxNode.value = ent.Value
+	}
+	if ent.ExpiredAt != 0 {
+		idxNode.expiredAt = ent.ExpiredAt
+	}
+	idxTree.Put(ent.Key, idxNode)
 
 }
+
 func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree,
 	entry *logfile.LogEntry, pos *valuePos, sendDiscard bool, dType DataType) error {
 

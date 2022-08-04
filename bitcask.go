@@ -302,14 +302,16 @@ func (db *BitcaskDB) initDiscard() error {
 func (db *BitcaskDB) encodeKey(key, subKey []byte) []byte {
 	header := make([]byte, encodeHeaderSize)
 	var index int
-	index += binary.PutUvarint(header, uint64(len(key)))
-	index += binary.PutUvarint(header, uint64(len(subKey)))
+	index += binary.PutUvarint(header[index:], uint64(len(key)))
+	index += binary.PutUvarint(header[index:], uint64(len(subKey)))
 	length := len(key) + len(subKey)
 	if length > 0 {
 		buf := make([]byte, length+index)
 		copy(buf, header[:index])
 		copy(buf[index:index+len(key)], key)
 		copy(buf[index+len(key):], subKey)
+		// fmt.Println("buf:", string(buf))
+		return buf
 	}
 	return header[:index]
 }
