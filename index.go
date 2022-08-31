@@ -1,7 +1,7 @@
 package bitcask
 
 import (
-	art "bitcask/ds"
+	"bitcask/ds/art"
 	"bitcask/logfile"
 	"bitcask/options"
 	"io"
@@ -17,6 +17,7 @@ const (
 	String DataType = iota
 	List
 	Hash
+	Set
 )
 
 func (db *BitcaskDB) buildIndex(dataType DataType, ent *logfile.LogEntry, pos *valuePos) {
@@ -27,6 +28,8 @@ func (db *BitcaskDB) buildIndex(dataType DataType, ent *logfile.LogEntry, pos *v
 		db.buildListIndex(ent, pos)
 	case Hash:
 		db.buildHashIndex(ent, pos)
+	case Set:
+		db.buildSetIndex(ent, pos)
 	}
 
 }
@@ -95,6 +98,34 @@ func (db *BitcaskDB) buildHashIndex(ent *logfile.LogEntry, pos *valuePos) {
 		idxNode.expiredAt = ent.ExpiredAt
 	}
 	idxTree.Put(ent.Key, idxNode)
+}
+
+func (db *BitcaskDB) buildSetIndex(ent *logfile.LogEntry, pos *valuePos) {
+	if db.setIndex.trees[string(ent.Key)] == nil {
+		db.setIndex.trees[string(ent.Key)] = art.NewART()
+	}
+	idxTree := db.setIndex.trees[string(ent.Key)]
+
+	if err := db.setIndex.murhash.Write(ent.Value); err != nil {
+		log.Fatalf("fail to write murmur hash: %v", err)
+	}
+	sum := db.setIndex.murhash.EncodeSum128()
+	db.setIndex.murhash.Reset()
+
+	if ent.Type == logfile.TypeDelete {
+		// In ROSEDB, the author code as follow:
+		// idxTree.Delete(ent.Value)
+		idxTree.Delete(sum)
+	}
+
+	idxNode := &indexNode{fid: pos.fid, offset: pos.offset, entrySize: pos.entrySize}
+	if db.opts.IndexMode == options.KeyValueMemMode {
+		idxNode.value = ent.Value
+	}
+	if ent.ExpiredAt != 0 {
+		idxNode.expiredAt = ent.ExpiredAt
+	}
+	idxTree.Put(sum, idxNode)
 
 }
 
@@ -127,7 +158,8 @@ func (db *BitcaskDB) getVal(idxTree *art.AdaptiveRadixTree, key []byte, dataType
 	}
 
 	ts := time.Now().Unix()
-	if idxNode.expiredAt != 0 && idxNode.expiredAt < ts {
+	if idxNode.expiredAt != 0 && idxNode.expiredAt <= ts {
+		// I should probably delete the node this time...
 		return nil, ErrKeyNotFound
 	}
 
@@ -137,7 +169,8 @@ func (db *BitcaskDB) getVal(idxTree *art.AdaptiveRadixTree, key []byte, dataType
 
 	lf := db.activateLogFile[dataType]
 	if lf.Fid != idxNode.fid {
-		lf = db.archivedLogFile[dataType][idxNode.fid]
+		lf = db.getArchivedLogFile(dataType, idxNode.fid)
+		// lf = db.archivedLogFile[dataType][idxNode.fid]
 	}
 	if lf == nil {
 		return nil, ErrKeyNotFound

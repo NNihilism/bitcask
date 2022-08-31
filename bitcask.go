@@ -1,7 +1,7 @@
 package bitcask
 
 import (
-	art "bitcask/ds"
+	art "bitcask/ds/art"
 	"bitcask/logfile"
 	"bitcask/options"
 	"bitcask/util"
@@ -35,6 +35,8 @@ type (
 		strIndex        *strIndex
 		listIndex       *listIndex
 		hashIndex       *hashIndex // Hash indexes.
+		setIndex        *setIndex  // Set indexes.
+		zsetIndex       *zsetIndex // Sorted set indexes.
 		opts            options.Options
 		mu              *sync.RWMutex
 		gcState         int32
@@ -55,6 +57,18 @@ type (
 	hashIndex struct {
 		mu    *sync.RWMutex
 		trees map[string]*art.AdaptiveRadixTree
+	}
+	setIndex struct {
+		mu      *sync.RWMutex
+		murhash *util.Murmur128
+		trees   map[string]*art.AdaptiveRadixTree
+	}
+
+	zsetIndex struct {
+		mu *sync.RWMutex
+		// indexes *zset.SortedSet
+		murhash *util.Murmur128
+		trees   map[string]*art.AdaptiveRadixTree
 	}
 	indexNode struct {
 		value     []byte
@@ -92,7 +106,7 @@ var (
 type DataType = int8
 
 const (
-	LogFileTypeNum   = 3
+	LogFileTypeNum   = 4
 	discardFilePath  = "DISCARD"
 	initialListSeq   = math.MaxUint32 / 2
 	encodeHeaderSize = 10
@@ -115,6 +129,7 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 		strIndex:        newStrsIndex(),
 		listIndex:       newListIndex(),
 		hashIndex:       newHashIndex(),
+		setIndex:        newSetIndex(),
 		mu:              new(sync.RWMutex),
 	}
 
@@ -144,6 +159,14 @@ func newListIndex() *listIndex {
 }
 func newHashIndex() *hashIndex {
 	return &hashIndex{trees: make(map[string]*art.AdaptiveRadixTree), mu: new(sync.RWMutex)}
+}
+
+func newSetIndex() *setIndex {
+	return &setIndex{
+		murhash: util.NewMurmur128(),
+		trees:   make(map[string]*art.AdaptiveRadixTree),
+		mu:      new(sync.RWMutex),
+	}
 }
 
 func (db *BitcaskDB) getActiveLogFile(dataType DataType) *logfile.LogFile {
