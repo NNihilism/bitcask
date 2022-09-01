@@ -43,6 +43,7 @@ const (
 	Strs FileType = iota
 	List
 	Hash
+	Set
 )
 
 var (
@@ -50,11 +51,13 @@ var (
 		"strs": Strs,
 		"list": List,
 		"hash": Hash,
+		"set":  Set,
 	}
 	FileNamesMap = map[FileType]string{
 		Strs: "log.strs.",
 		List: "log.list.",
 		Hash: "log.hash.",
+		Set:  "log.set.",
 	}
 )
 

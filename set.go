@@ -3,6 +3,7 @@ package bitcask
 import (
 	"bitcask/ds/art"
 	"bitcask/logfile"
+	"bitcask/util"
 	"fmt"
 )
 
@@ -125,24 +126,7 @@ func (db *BitcaskDB) SMembers(key []byte) ([][]byte, error) {
 	db.setIndex.mu.RLock()
 	defer db.setIndex.mu.RUnlock()
 
-	idxTree := db.setIndex.trees[string(key)]
-	if idxTree == nil {
-		return nil, nil
-	}
-	var members [][]byte
-	iter := idxTree.Iterator()
-	for iter.HasNext() {
-		node, _ := iter.Next()
-		if node == nil {
-			continue
-		}
-		val, err := db.getVal(idxTree, node.Key(), Set)
-		if err != nil {
-			return nil, err
-		}
-		members = append(members, val)
-	}
-	return members, nil
+	return db.sMembers(key)
 }
 
 // SCard returns the set cardinality (number of elements) of the set stored at key.
@@ -153,6 +137,82 @@ func (db *BitcaskDB) SCard(key []byte) int {
 		return 0
 	}
 	return db.setIndex.trees[string(key)].Size()
+}
+
+// SDiff returns the members of the set difference between the first set and
+// all the successive sets. Returns error if no key is passed as a parameter.
+func (db *BitcaskDB) SDiff(keys ...[]byte) ([][]byte, error) {
+	db.setIndex.mu.RLock()
+	defer db.setIndex.mu.RUnlock()
+	if len(keys) == 0 {
+		return nil, ErrWrongNumberOfArgs
+	}
+
+	firstSet, err := db.sMembers(keys[0])
+	if err != nil {
+		return nil, err
+	}
+
+	if len(keys) == 1 {
+		return firstSet, nil
+	}
+
+	successiveSet := make(map[uint64]struct{})
+	for _, key := range keys[1:] {
+		members, err := db.sMembers(key)
+		if err != nil {
+			return nil, err
+		}
+		for _, mem := range members {
+			h := util.MemHash(mem)
+			if _, ok := successiveSet[h]; !ok {
+				successiveSet[h] = struct{}{}
+			}
+		}
+	}
+
+	if len(successiveSet) == 0 {
+		return firstSet, nil
+	}
+
+	var values [][]byte
+	for _, mem := range firstSet {
+		h := util.MemHash(mem)
+		if _, ok := successiveSet[h]; !ok {
+			values = append(values, mem)
+		}
+	}
+	return values, nil
+}
+
+// SUnion returns the members of the set resulting from the union of all the given sets.
+func (db *BitcaskDB) SUnion(keys ...[]byte) ([][]byte, error) {
+	db.setIndex.mu.RLock()
+	defer db.setIndex.mu.RUnlock()
+
+	if len(keys) == 0 {
+		return nil, ErrWrongNumberOfArgs
+	}
+	if len(keys) == 1 {
+		return db.sMembers(keys[0])
+	}
+
+	var values [][]byte
+	set := make(map[uint64]struct{})
+	for _, key := range keys {
+		members, err := db.sMembers(key)
+		if err != nil {
+			return nil, err
+		}
+		for _, mem := range members {
+			h := util.MemHash(mem)
+			if _, ok := set[h]; !ok {
+				set[h] = struct{}{}
+				values = append(values, mem)
+			}
+		}
+	}
+	return values, nil
 }
 
 func (db *BitcaskDB) sremInternal(key []byte, member []byte) error {
@@ -178,4 +238,26 @@ func (db *BitcaskDB) sremInternal(key []byte, member []byte) error {
 	idxNode := &indexNode{fid: pos.fid, offset: pos.offset, entrySize: pos.entrySize}
 	db.sendDiscard(idxNode, true, Set)
 	return nil
+}
+
+// sMembers is a helper method to get all members of the given set key.
+func (db *BitcaskDB) sMembers(key []byte) ([][]byte, error) {
+	idxTree := db.setIndex.trees[string(key)]
+	if idxTree == nil {
+		return nil, nil
+	}
+	var members [][]byte
+	iter := idxTree.Iterator()
+	for iter.HasNext() {
+		node, _ := iter.Next()
+		if node == nil {
+			continue
+		}
+		val, err := db.getVal(idxTree, node.Key(), Set)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, val)
+	}
+	return members, nil
 }
