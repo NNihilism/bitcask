@@ -44,6 +44,7 @@ const (
 	List
 	Hash
 	Set
+	ZSet
 )
 
 var (
@@ -52,12 +53,14 @@ var (
 		"list": List,
 		"hash": Hash,
 		"set":  Set,
+		"zset": ZSet,
 	}
 	FileNamesMap = map[FileType]string{
 		Strs: "log.strs.",
 		List: "log.list.",
 		Hash: "log.hash.",
 		Set:  "log.set.",
+		ZSet: "log.zset.",
 	}
 )
 

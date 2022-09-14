@@ -2,6 +2,7 @@ package bitcask
 
 import (
 	art "bitcask/ds/art"
+	zset "bitcask/ds/zset"
 	"bitcask/logfile"
 	"bitcask/options"
 	"bitcask/util"
@@ -65,8 +66,8 @@ type (
 	}
 
 	zsetIndex struct {
-		mu *sync.RWMutex
-		// indexes *zset.SortedSet
+		mu      *sync.RWMutex
+		indexes *zset.SortedSet
 		murhash *util.Murmur128
 		trees   map[string]*art.AdaptiveRadixTree
 	}
@@ -106,7 +107,7 @@ var (
 type DataType = int8
 
 const (
-	LogFileTypeNum   = 4
+	LogFileTypeNum   = 5
 	discardFilePath  = "DISCARD"
 	initialListSeq   = math.MaxUint32 / 2
 	encodeHeaderSize = 10
@@ -130,6 +131,7 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 		listIndex:       newListIndex(),
 		hashIndex:       newHashIndex(),
 		setIndex:        newSetIndex(),
+		zsetIndex:       newZSetIndex(),
 		mu:              new(sync.RWMutex),
 	}
 
@@ -166,6 +168,15 @@ func newSetIndex() *setIndex {
 		murhash: util.NewMurmur128(),
 		trees:   make(map[string]*art.AdaptiveRadixTree),
 		mu:      new(sync.RWMutex),
+	}
+}
+
+func newZSetIndex() *zsetIndex {
+	return &zsetIndex{
+		murhash: util.NewMurmur128(),
+		trees:   make(map[string]*art.AdaptiveRadixTree),
+		mu:      new(sync.RWMutex),
+		indexes: zset.New(),
 	}
 }
 

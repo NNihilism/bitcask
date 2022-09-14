@@ -4,6 +4,8 @@ import (
 	"bitcask/ds/art"
 	"bitcask/logfile"
 	"bitcask/options"
+	"bitcask/util"
+	"fmt"
 	"io"
 	"log"
 	"sort"
@@ -18,6 +20,7 @@ const (
 	List
 	Hash
 	Set
+	ZSet
 )
 
 func (db *BitcaskDB) buildIndex(dataType DataType, ent *logfile.LogEntry, pos *valuePos) {
@@ -30,6 +33,8 @@ func (db *BitcaskDB) buildIndex(dataType DataType, ent *logfile.LogEntry, pos *v
 		db.buildHashIndex(ent, pos)
 	case Set:
 		db.buildSetIndex(ent, pos)
+	case ZSet:
+		db.buildZSetIndex(ent, pos)
 	}
 
 }
@@ -126,7 +131,44 @@ func (db *BitcaskDB) buildSetIndex(ent *logfile.LogEntry, pos *valuePos) {
 		idxNode.expiredAt = ent.ExpiredAt
 	}
 	idxTree.Put(sum, idxNode)
+}
 
+func (db *BitcaskDB) buildZSetIndex(ent *logfile.LogEntry, pos *valuePos) {
+	// type == delete :	key----key, value----sum
+	if ent.Type == logfile.TypeDelete {
+		db.zsetIndex.indexes.ZRem(string(ent.Key), string(ent.Value))
+		if db.zsetIndex.trees[string(ent.Key)] != nil {
+			db.zsetIndex.trees[string(ent.Key)].Delete(ent.Value)
+		}
+		return
+	}
+
+	// type != delete : key----key+score, value----member
+	// node := &indexNode{fid:}
+	key, scoreBuf := db.decodeKey(ent.Key)
+	if db.zsetIndex.trees[string(key)] == nil {
+		db.zsetIndex.trees[string(key)] = art.NewART()
+	}
+	idxTree := db.zsetIndex.trees[string(key)]
+
+	if err := db.zsetIndex.murhash.Write(ent.Value); err != nil {
+		return
+	}
+	sum := db.zsetIndex.murhash.EncodeSum128()
+	db.zsetIndex.murhash.Reset()
+
+	idxNode := &indexNode{fid: pos.fid, offset: pos.offset, entrySize: pos.entrySize}
+	if db.opts.IndexMode == options.KeyValueMemMode {
+		idxNode.value = ent.Value
+	}
+	idxTree.Put(sum, idxNode)
+
+	score, err := util.StrToFloat64(string(scoreBuf))
+	if err != nil {
+		return
+	}
+
+	db.zsetIndex.indexes.ZAdd(string(key), score, string(sum))
 }
 
 func (db *BitcaskDB) updateIndexTree(idxTree *art.AdaptiveRadixTree,
@@ -205,6 +247,7 @@ func (db *BitcaskDB) getIndexNode(idxTree *art.AdaptiveRadixTree, key []byte, da
 
 func (db *BitcaskDB) LoadIndexFromLogFiles() error {
 	iteratorAndHandle := func(dataType DataType, wg *sync.WaitGroup) {
+		fmt.Println(dataType)
 		defer wg.Done()
 		fids := db.fidMap[dataType]
 		if len(fids) == 0 {
