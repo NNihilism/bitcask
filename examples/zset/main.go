@@ -5,6 +5,7 @@ import (
 	"bitcask/options"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func main() {
@@ -16,13 +17,13 @@ func main() {
 		return
 	}
 
-	// for i := 1; i <= 10; i++ {
-	// 	err = db.ZAdd([]byte("zset-key"), float64(i*2), []byte("member-"+strconv.Itoa(i)))
-	// 	if err != nil {
-	// 		fmt.Printf("write data err: %v", err)
-	// 		return
-	// 	}
-	// }
+	for i := 1; i <= 10; i++ {
+		err = db.ZAdd([]byte("zset-key"), float64(i*2), []byte("member-"+strconv.Itoa(i)))
+		if err != nil {
+			fmt.Printf("write data err: %v", err)
+			return
+		}
+	}
 
 	ok, score := db.ZScore([]byte("zset-key"), []byte("member-1"))
 	if ok {

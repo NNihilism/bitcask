@@ -41,3 +41,12 @@ Hash与List相似，不同的Key存储在不同的索引树上，写入磁盘文
 去重：
 - 对于一个索引树，树上的所有key本来就是唯一的，因此，如果不同的集合使用不同的索引树来维护，那么无需可以去重，只需要给集合的每个元素确定唯一的key即可，这里使用的是hash算法来生成唯一的key。
 - 而在logfile中，每个entry写入时的key为其本身的key,而不是使用hash算法生成的key(可能是为了减少存储空间吧)，即不同的记录在磁盘文件中只需要区分所在的索引树即可，而不像Hash一样，还需要区分对应的field
+- ##### ZSet
+1 内存中同时维护索引树和跳表，磁盘中维护logfile.  
+2 索引树中，key为member经过hash后的sum, value为member, 跟score无关  
+3 跳表用来维护所需同一个key中的所有sum(hash后的member)和对应的score，方便获取指定范围以及排名等  
+
+
+- 需要注意的是，删除操作时，参数没有score，因此在写入logentry时，其key-value与添加操作时写入的logentry的key-value不同，哪怕他们是对同一个member进行操作。写入操作时，logentry的key和value分别为key+score, member，这是因为在初始化索引时需要key,member,score等信息。删除操作时，key,value分别为key和sum(hash后的member),在建立索引时，遍历到该logentry,即可根据sum在索引树和跳表中删除之前建立的节点。
+- zset的实现中，索引树有必要存在吗？ 好像没有...
+

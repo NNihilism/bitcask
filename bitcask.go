@@ -398,7 +398,7 @@ func (db *BitcaskDB) handleLogFileGC() {
 
 			for i := String; i < LogFileTypeNum; i++ {
 				go func(dataType DataType) {
-					err := db.doRunGC(dataType, -1, int(db.opts.LogFileGCRatio))
+					err := db.doRunGC(dataType, -1)
 					if err != nil {
 						log.Printf("log file gc err, dataType: [%v], err: [%v]", dataType, err)
 					}
@@ -412,7 +412,7 @@ func (db *BitcaskDB) handleLogFileGC() {
 	}
 }
 
-func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) error {
+func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int) error {
 	atomic.AddInt32(&db.gcState, 1)
 	defer atomic.AddInt32(&db.gcState, -1)
 
@@ -444,6 +444,144 @@ func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) e
 			}
 			// false : the archivedFile will be deleted. Do not need to call sendDiscard()
 			if err = db.updateIndexTree(db.strIndex.idxTree, logEntry, pos, false, String); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	maybeRewriteList := func(logEntry *logfile.LogEntry, fid uint32, offset int64) error {
+		db.listIndex.mu.Lock()
+		defer db.listIndex.mu.Unlock()
+
+		if logEntry.Type == logfile.TypeDelete {
+			return nil
+		}
+
+		treeKey := logEntry.Key
+		if logEntry.Type != logfile.TypeListMeta {
+			treeKey, _ = db.decodeListKey(treeKey)
+		}
+
+		idxTree := db.listIndex.trees[string(treeKey)]
+		if idxTree == nil {
+			return nil
+		}
+		idxValue := idxTree.Get(logEntry.Key)
+		if idxValue == nil {
+			return nil
+		}
+		idxNode, _ := idxValue.(*indexNode)
+		if idxNode != nil && idxNode.fid == fid && idxNode.offset == offset {
+			valuePos, err := db.writeLogEntry(logEntry, List)
+			if err != nil {
+				return err
+			}
+			if err = db.updateIndexTree(idxTree, logEntry, valuePos, false, List); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	maybeRewriteHash := func(logEntry *logfile.LogEntry, fid uint32, offset int64) error {
+		db.hashIndex.mu.Lock()
+		defer db.hashIndex.mu.Unlock()
+
+		if logEntry.Type == logfile.TypeDelete {
+			return nil
+		}
+
+		key, _ := db.decodeKey(logEntry.Key)
+		idxTree := db.hashIndex.trees[string(key)]
+		if idxTree == nil {
+			return nil
+		}
+		idxValue := idxTree.Get(logEntry.Key)
+		if idxValue == nil {
+			return nil
+		}
+		idxNode, _ := idxValue.(*indexNode)
+		if idxNode != nil && idxNode.fid == fid && idxNode.offset == offset {
+			valuePos, err := db.writeLogEntry(logEntry, List)
+			if err != nil {
+				return err
+			}
+			if err = db.updateIndexTree(idxTree, logEntry, valuePos, false, List); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	maybeRewriteSets := func(logEntry *logfile.LogEntry, fid uint32, offset int64) error {
+		db.setIndex.mu.Lock()
+		defer db.setIndex.mu.Unlock()
+
+		if logEntry.Type == logfile.TypeDelete {
+			return nil
+		}
+
+		idxTree := db.setIndex.trees[string(logEntry.Key)]
+		if idxTree == nil {
+			return nil
+		}
+
+		if err := db.setIndex.murhash.Write(logEntry.Value); err != nil {
+			fmt.Println("err")
+			return err
+		}
+		sum := db.setIndex.murhash.EncodeSum128()
+		db.setIndex.murhash.Reset()
+
+		idxValue := idxTree.Get(sum)
+		if idxValue == nil {
+			return nil
+		}
+		idxNode, _ := idxValue.(*indexNode)
+		if idxNode != nil && idxNode.fid == fid && idxNode.offset == offset {
+			valuePos, err := db.writeLogEntry(logEntry, List)
+			if err != nil {
+				return err
+			}
+			if err = db.updateIndexTree(idxTree, logEntry, valuePos, false, List); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	maybeRewriteZSet := func(logEntry *logfile.LogEntry, fid uint32, offset int64) error {
+		db.zsetIndex.mu.Lock()
+		defer db.zsetIndex.mu.Unlock()
+
+		if logEntry.Type == logfile.TypeDelete {
+			return nil
+		}
+
+		key, _ := db.decodeKey(logEntry.Key)
+		idxTree := db.zsetIndex.trees[string(key)]
+		if idxTree == nil {
+			return nil
+		}
+
+		if err := db.zsetIndex.murhash.Write(logEntry.Value); err != nil {
+			return err
+		}
+		sum := db.zsetIndex.murhash.EncodeSum128()
+		db.zsetIndex.murhash.Reset()
+
+		idxValue := idxTree.Get(sum)
+		if idxValue == nil {
+			return nil
+		}
+		idxNode := idxValue.(*indexNode)
+		if idxNode != nil && idxNode.fid == fid && idxNode.offset == offset {
+			valuePos, err := db.writeLogEntry(logEntry, ZSet)
+			if err != nil {
+				return err
+			}
+			if err = db.updateIndexTree(idxTree, logEntry, valuePos, false, ZSet); err != nil {
 				return err
 			}
 		}
@@ -488,6 +626,14 @@ func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) e
 			switch dataType {
 			case String:
 				err = maybeRewriteStrs(logEntry, fid, offset)
+			case List:
+				err = maybeRewriteList(logEntry, fid, offset)
+			case Hash:
+				err = maybeRewriteHash(logEntry, fid, offset)
+			case Set:
+				err = maybeRewriteSets(logEntry, fid, offset)
+			case ZSet:
+				err = maybeRewriteZSet(logEntry, fid, offset)
 			}
 
 			if err != nil {
@@ -500,8 +646,9 @@ func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int, gcRatio int) e
 		// delete older log file.
 		db.mu.Lock()
 		delete(db.archivedLogFile[dataType], fid)
-		err = archivedFile.Delete()
-		fmt.Printf("delete archived file err:%v", err)
+		if err = archivedFile.Delete(); err != nil {
+			fmt.Printf("delete archived file err:%v", err)
+		}
 		db.mu.Unlock()
 		// clear discard state.
 		db.discards[dataType].clear(fid)
