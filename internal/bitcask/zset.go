@@ -1,9 +1,9 @@
 package bitcask
 
 import (
-	"bitcask/ds/art"
-	"bitcask/logfile"
-	"bitcask/util"
+	"bitcaskDB/internal/ds/art"
+	"bitcaskDB/internal/logfile"
+	"bitcaskDB/internal/util"
 )
 
 // ZAdd adds the specified member with the specified score to the sorted set stored at key.

@@ -1,12 +1,12 @@
 package bitcask
 
 import (
-	"bitcask/ioselector"
-	"bitcask/logfile"
+	"bitcaskDB/internal/ioselector"
+	"bitcaskDB/internal/log"
+	"bitcaskDB/internal/logfile"
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -79,7 +79,7 @@ func (d *discard) listenUpdates() {
 	}
 	// Close the channel, and the loop will end when the buffer is empty
 	if err := d.file.Close(); err != nil {
-		log.Printf("close discard file err : %v", err)
+		log.Errorf("close discard file err : %v", err)
 	}
 }
 
@@ -100,7 +100,7 @@ func (d *discard) incr(fid uint32, delta int) {
 
 	offset, err := d.alloc(fid)
 	if err != nil {
-		log.Printf("discard file allocate err : %+v", err)
+		log.Errorf("discard file allocate err : %+v", err)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (d *discard) incr(fid uint32, delta int) {
 		buf = make([]byte, 4)
 		_, err = d.file.Read(buf, offset)
 		if err != nil {
-			log.Printf("read in incr() value in discard.go err :%v", err)
+			log.Errorf("read in incr() value in discard.go err :%v", err)
 			return
 		}
 		v := binary.LittleEndian.Uint32(buf)
@@ -120,7 +120,7 @@ func (d *discard) incr(fid uint32, delta int) {
 	}
 
 	if _, err = d.file.Write(buf, offset); err != nil {
-		log.Printf("write in incr() in discard.go err :%v", err)
+		log.Errorf("write in incr() in discard.go err :%v", err)
 	}
 }
 
@@ -148,7 +148,7 @@ func (d *discard) setTotal(fid uint32, totalSize uint32) {
 
 	offset, err := d.alloc(fid)
 	if err != nil {
-		log.Printf("discard file allocate err: %+v", err)
+		log.Errorf("discard file allocate err: %+v", err)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (d *discard) setTotal(fid uint32, totalSize uint32) {
 	binary.LittleEndian.PutUint32(buf[4:], totalSize)
 	_, err = d.file.Write(buf, offset)
 	if err != nil {
-		log.Printf("write discard file err: %+v", err)
+		log.Errorf("write discard file err: %+v", err)
 		return
 	}
 	//d.sync()

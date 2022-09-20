@@ -1,17 +1,17 @@
 package bitcask
 
 import (
-	art "bitcask/ds/art"
-	zset "bitcask/ds/zset"
-	"bitcask/logfile"
-	"bitcask/options"
-	"bitcask/util"
+	art "bitcaskDB/internal/ds/art"
+	"bitcaskDB/internal/ds/zset"
+	"bitcaskDB/internal/log"
+	"bitcaskDB/internal/logfile"
+	"bitcaskDB/internal/options"
+	"bitcaskDB/internal/util"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"os"
 	"os/signal"
@@ -118,7 +118,7 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 	// create the dir if the path does not exist
 	if !util.PathExist(opts.DBPath) {
 		if err := os.MkdirAll(opts.DBPath, os.ModePerm); err != nil {
-			log.Println("Failed to create dir")
+			log.Errorf("Failed to create dir")
 			return nil, err
 		}
 	}
@@ -136,7 +136,7 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 	}
 
 	if err := db.loadLogFile(); err != nil {
-		log.Println("Failed to load log file")
+		log.Errorf("load log file err : %v", err)
 		return nil, err
 	}
 
@@ -252,7 +252,7 @@ func (db *BitcaskDB) loadLogFile() error {
 
 func (db *BitcaskDB) writeLogEntry(ent *logfile.LogEntry, dataType DataType) (*valuePos, error) {
 	if err := db.initLogFile(dataType); err != nil {
-		log.Println("Failed to initLogFile")
+		log.Errorf("init log file err : %v", err)
 		return nil, err
 	}
 	activeLogFile := db.activateLogFile[dataType]
@@ -324,7 +324,7 @@ func (db *BitcaskDB) initDiscard() error {
 		name := logfile.FileNamesMap[logfile.FileType(i)] + discardFileName
 		d, err := newDiscard(discardPath, name, db.opts.DiscardBufferSize)
 		if err != nil {
-			log.Printf("init discard err:%v", err)
+			log.Errorf("init discard err:%v", err)
 			return err
 		}
 		discards[i] = d
@@ -386,13 +386,13 @@ func (db *BitcaskDB) handleLogFileGC() {
 	// signal.Notify(quitSig, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	signal.Notify(quitSig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	log.Println("FileGC started successfully")
+	log.Info("FileGC started successfully")
 
 	for {
 		select {
 		case <-ticker.C:
 			if atomic.LoadInt32(&db.gcState) > 0 {
-				log.Println("log file gc is running, skip it")
+				log.Info("log file gc is running, skip it")
 				break
 			}
 
@@ -400,13 +400,13 @@ func (db *BitcaskDB) handleLogFileGC() {
 				go func(dataType DataType) {
 					err := db.doRunGC(dataType, -1)
 					if err != nil {
-						log.Printf("log file gc err, dataType: [%v], err: [%v]", dataType, err)
+						log.Errorf("log file gc err, dataType: [%v], err: [%v]", dataType, err)
 					}
 				}(i)
 
 			}
 		case <-quitSig:
-			log.Println("FileGC quit sig...")
+			log.Info("FileGC quit sig...")
 			return
 		}
 	}
@@ -599,7 +599,7 @@ func (db *BitcaskDB) doRunGC(dataType DataType, specifiedFid int) error {
 
 	ccl, err := db.discards[dataType].getCCL(activateFile.Fid, db.opts.LogFileGCRatio)
 	if err != nil {
-		log.Printf("doRunGC err:%v", err)
+		log.Errorf("doRunGC err:%v", err)
 		return err
 	}
 
@@ -668,7 +668,7 @@ func (db *BitcaskDB) sendDiscard(oldVal interface{}, updated bool, dType DataTyp
 	select {
 	case db.discards[dType].valChan <- idxNode:
 	default:
-		log.Println("send to discard chan fail!")
+		log.Error("send to discard chan fail!")
 	}
 }
 

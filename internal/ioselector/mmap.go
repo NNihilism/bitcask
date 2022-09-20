@@ -1,7 +1,7 @@
 package ioselector
 
 import (
-	"bitcask/mmap"
+	"bitcaskDB/internal/mmap"
 	"io"
 	"os"
 )

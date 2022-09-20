@@ -1,8 +1,8 @@
 package logfile
 
 import (
-	"bitcask/ioselector"
-	"bitcask/util"
+	"bitcaskDB/internal/ioselector"
+	"bitcaskDB/internal/util"
 	"encoding/binary"
 	"errors"
 	"fmt"

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bitcask"
-	"bitcask/options"
+	"bitcaskDB/internal/bitcask"
+	"bitcaskDB/internal/options"
 	"fmt"
 	"os"
 	"strconv"

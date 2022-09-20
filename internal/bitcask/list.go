@@ -1,8 +1,8 @@
 package bitcask
 
 import (
-	art "bitcask/ds/art"
-	"bitcask/logfile"
+	art "bitcaskDB/internal/ds/art"
+	"bitcaskDB/internal/logfile"
 	"encoding/binary"
 )
 

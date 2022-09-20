@@ -1,8 +1,8 @@
 package zset
 
 import (
-	"bitcask/logfile"
-	"bitcask/util"
+	"bitcaskDB/internal/logfile"
+	"bitcaskDB/internal/util"
 	"math"
 	"math/rand"
 )

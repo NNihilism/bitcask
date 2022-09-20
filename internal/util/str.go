@@ -21,3 +21,11 @@ func StrToInt64(val string) (int64, error) {
 func StrToUint(val string) (uint64, error) {
 	return strconv.ParseUint(val, 10, 64)
 }
+
+func StrArrToByteArr(strArr []string) [][]byte {
+	res := make([][]byte, len(strArr))
+	for i, str := range strArr {
+		res[i] = []byte(str)
+	}
+	return res
+}

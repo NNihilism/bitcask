@@ -1,7 +1,7 @@
 package bitcask
 
 import (
-	"bitcask/logfile"
+	"bitcaskDB/internal/logfile"
 	"bytes"
 	"errors"
 	"math"

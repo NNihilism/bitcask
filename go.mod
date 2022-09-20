@@ -1,4 +1,4 @@
-module bitcask
+module bitcaskDB
 
 go 1.17
 

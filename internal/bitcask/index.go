@@ -1,11 +1,10 @@
 package bitcask
 
 import (
-	"bitcask/ds/art"
-	"bitcask/logfile"
-	"bitcask/options"
-	"bitcask/util"
-	"fmt"
+	"bitcaskDB/internal/ds/art"
+	"bitcaskDB/internal/logfile"
+	"bitcaskDB/internal/options"
+	"bitcaskDB/internal/util"
 	"io"
 	"log"
 	"sort"
@@ -247,7 +246,6 @@ func (db *BitcaskDB) getIndexNode(idxTree *art.AdaptiveRadixTree, key []byte, da
 
 func (db *BitcaskDB) LoadIndexFromLogFiles() error {
 	iteratorAndHandle := func(dataType DataType, wg *sync.WaitGroup) {
-		fmt.Println(dataType)
 		defer wg.Done()
 		fids := db.fidMap[dataType]
 		if len(fids) == 0 {
