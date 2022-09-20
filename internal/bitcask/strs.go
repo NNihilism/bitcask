@@ -2,6 +2,7 @@ package bitcask
 
 import (
 	"bitcaskDB/internal/logfile"
+	"bitcaskDB/internal/util"
 	"bytes"
 	"errors"
 	"math"
@@ -92,6 +93,50 @@ func (db *BitcaskDB) MSet(args ...[]byte) error {
 	return nil
 }
 
+// MSetNX sets given keys to their respective values. MSetNX will not perform
+// any operation at all even if just a single key already exists.
+func (db *BitcaskDB) MSetNX(args ...[]byte) error {
+	db.strIndex.mu.Lock()
+	defer db.strIndex.mu.Unlock()
+
+	if len(args) == 0 || len(args)%2 != 0 {
+		return ErrWrongNumberOfArgs
+	}
+
+	// check.
+	for i := 0; i < len(args); i += 2 {
+		key := args[i]
+		val, err := db.getVal(db.strIndex.idxTree, key, String)
+		if err != nil && !errors.Is(err, ErrKeyNotFound) {
+			return err
+		}
+		if val != nil {
+			return nil
+		}
+	}
+
+	var addedKeys = make(map[uint64]struct{})
+	// Set keys to their values.
+	for i := 0; i < len(args); i += 2 {
+		key, value := args[i], args[i+1]
+		h := util.MemHash(key)
+		if _, ok := addedKeys[h]; ok {
+			continue
+		}
+		entry := &logfile.LogEntry{Key: key, Value: value}
+		valPos, err := db.writeLogEntry(entry, String)
+		if err != nil {
+			return err
+		}
+		err = db.updateIndexTree(db.strIndex.idxTree, entry, valPos, true, String)
+		if err != nil {
+			return err
+		}
+		addedKeys[h] = struct{}{}
+	}
+	return nil
+}
+
 // Append appends the value at the end of the old value if key already exists.
 // It will be similar to Set if key does not exist.
 func (db *BitcaskDB) Append(key, value []byte) error {
@@ -122,6 +167,25 @@ func (db *BitcaskDB) Get(key []byte) ([]byte, error) {
 	return db.getVal(db.strIndex.idxTree, key, String)
 }
 
+func (db *BitcaskDB) MGet(keys [][]byte) ([][]byte, error) {
+	db.strIndex.mu.RLock()
+	defer db.strIndex.mu.RUnlock()
+
+	if len(keys) == 0 {
+		return nil, ErrWrongNumberOfArgs
+	}
+
+	values := make([][]byte, len(keys))
+	for i, key := range keys {
+		value, err := db.getVal(db.strIndex.idxTree, key, String)
+		if err != nil && !errors.Is(ErrKeyNotFound, err) {
+			return nil, err
+		}
+		values[i] = value
+	}
+	return values, nil
+}
+
 // Delete value at the given key.
 func (db *BitcaskDB) Delete(key []byte) error {
 	db.strIndex.mu.Lock()
@@ -144,6 +208,38 @@ func (db *BitcaskDB) Delete(key []byte) error {
 	db.sendDiscard(idxNode, update, String)
 
 	return nil
+}
+
+// GetDel gets the value of the key and deletes the key. This method is similar
+// to Get method. It also deletes the key if it exists.
+func (db *BitcaskDB) GetDel(key []byte) ([]byte, error) {
+	db.strIndex.mu.Lock()
+	defer db.strIndex.mu.Unlock()
+
+	val, err := db.getVal(db.strIndex.idxTree, key, String)
+	if err != nil && err != ErrKeyNotFound {
+		return nil, err
+	}
+	if val == nil {
+		return nil, nil
+	}
+
+	entry := &logfile.LogEntry{Key: key, Type: logfile.TypeDelete}
+	pos, err := db.writeLogEntry(entry, String)
+	if err != nil {
+		return nil, err
+	}
+
+	oldVal, update := db.strIndex.idxTree.Delete(key)
+
+	db.sendDiscard(oldVal, update, String)
+
+	// The deleted entry itself is also invalid.
+	_, size := logfile.EncodeEntry(entry)
+	idxNode := &indexNode{fid: pos.fid, entrySize: size}
+	db.sendDiscard(idxNode, update, String)
+
+	return val, nil
 }
 
 // StrLen returns the length of the string value stored at key. If the key
