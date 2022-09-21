@@ -3,6 +3,7 @@ package server
 import (
 	"bitcaskDB/internal/bitcask"
 	"bitcaskDB/internal/log"
+	"bitcaskDB/internal/util"
 	"bytes"
 	"fmt"
 	"io"
@@ -59,18 +60,19 @@ func (cli *ClientHandle) Handle() {
 
 		if res, err := cmdFunc(cli, args); err != nil {
 			if err == bitcask.ErrKeyNotFound {
-				cli.conn.Write(nil)
+				cli.conn.Write([]byte("(nil)"))
 			} else {
-				cli.conn.Write([]byte(err.Error()))
+				cli.conn.Write([]byte("(error) " + err.Error()))
 			}
 		} else {
 			// 通过反射判断数据类型，再统一转成[]byte形式？
-			// fmt.Println("res : ", res)
-			cli.conn.Write([]byte(res.(string)))
+			cli.conn.Write(util.ConvertToBSlice(res))
 		}
 	}
 }
 
 func (cli *ClientHandle) close() {
+	log.Info("close client....")
+	cli.db.Close()
 	cli.conn.Close()
 }

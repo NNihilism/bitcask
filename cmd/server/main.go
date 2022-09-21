@@ -39,7 +39,7 @@ type ServerOptions struct {
 }
 
 func main() {
-	// init server options
+	// init server config
 	serverOpts = new(ServerOptions)
 	flag.StringVar(&serverOpts.dbPath, "dbpath", defaultDBPath, "db path")
 	flag.StringVar(&serverOpts.host, "host", defaultHost, "server host")
@@ -58,13 +58,13 @@ func main() {
 	}
 	log.Infof("open db from [%s] successfully, time cost: %v", serverOpts.dbPath, time.Since(now))
 
+	// quit signal
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGKILL, syscall.SIGHUP,
+	signal.Notify(sig, syscall.SIGTERM, syscall.SIGHUP,
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	// start listening
 	listener, err := net.Listen("tcp", serverOpts.host+":"+serverOpts.port)
-	// listener, err := net.Listen("tcp", ":0")
-
 	if err != nil {
 		log.Errorf("listene err: %v", err)
 	}
@@ -82,20 +82,16 @@ func main() {
 		log.Info("close bitcaskDB success...")
 	}()
 
-	<-sig
-	fmt.Println("after sig....")
+	<-sig // Wait for quitting.
 }
 
 func listen(listener net.Listener, defaultDB *bitcask.BitcaskDB) {
 	for {
-		log.Info("listen....1")
 		conn, err := listener.Accept()
-		log.Info("listen....2")
-
 		if err != nil {
 			log.Errorf("accept err : %v", err)
 		}
-		log.Infof("new conn : %v", conn)
+		log.Infof("new conn : %v", conn.LocalAddr())
 
 		clientHandle := server.NewClientHandle(conn, defaultDB)
 		go clientHandle.Handle()
