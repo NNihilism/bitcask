@@ -26,6 +26,11 @@ func ConvertToBSlice(vi interface{}) []byte {
 		return []byte(fmt.Sprintf("(integer) %s", valStr))
 	case reflect.Invalid:
 		return []byte("(nil)")
+	case reflect.Bool:
+		if vi.(bool) {
+			return []byte("(integer) 1")
+		}
+		return []byte("(integer) 0")
 	default:
 		return []byte("(undefine)")
 	}

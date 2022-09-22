@@ -67,5 +67,7 @@ func main() {
 	}
 	fmt.Println(string(rPopStu))
 
+	val, _ := db.LRange([]byte("students"), 1, 111)
+	fmt.Println(val)
 	//db.Close()
 }

@@ -73,8 +73,6 @@ func main() {
 	go listen(listener, db)
 
 	defer func() {
-		log.Info("start clos server...")
-
 		listener.Close()
 		for _, db := range dbs {
 			if err := db.Close(); err != nil {
@@ -97,11 +95,8 @@ func listen(listener net.Listener, defaultDB *bitcask.BitcaskDB) {
 		log.Infof("new conn : %v", conn.LocalAddr())
 
 		clientHandle := server.NewClientHandle(conn, defaultDB)
-		if clientHandle == nil {
-			log.Info("nil....")
-		} else {
-			go clientHandle.Handle()
 
-		}
+		go clientHandle.Handle()
+
 	}
 }

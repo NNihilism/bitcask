@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bitcaskDB/internal/bitcask"
 	"bitcaskDB/internal/util"
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -272,116 +274,229 @@ func strLen(cli *ClientHandle, args [][]byte) (interface{}, error) {
 // |---------------------------- List commands ---------------------------|
 // +-------+--------+----------+------------+-----------+-------+---------+
 func lPush(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 {
+		return nil, newWrongNumOfArgsError("lpush")
+	}
+	if err := cli.db.LPush(args[0], args[1:]...); err != nil {
+		return nil, err
+	}
+	return cli.db.LLen(args[0]), nil
 }
 
 func lPushX(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 {
+		return nil, newWrongNumOfArgsError("lpush")
+	}
+	if err := cli.db.LPushX(args[0], args[1:]...); err != nil && err != bitcask.ErrKeyNotFound {
+		return nil, err
+	}
+	return cli.db.LLen(args[0]), nil
 }
 
 func rPush(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 {
+		return nil, newWrongNumOfArgsError("lpush")
+	}
+	if err := cli.db.RPush(args[0], args[1:]...); err != nil {
+		return nil, err
+	}
+	return cli.db.LLen(args[0]), nil
 }
 
 func rPushX(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 {
+		return nil, newWrongNumOfArgsError("lpush")
+	}
+	if err := cli.db.LPushX(args[0], args[1:]...); err != nil && err != bitcask.ErrKeyNotFound {
+		return nil, err
+	}
+	return cli.db.LLen(args[0]), nil
 }
 
 func lPop(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("lpop")
+	}
+	if val, err := cli.db.LPop(args[0]); err != nil {
+		return nil, err
+	} else {
+		return val, nil
+	}
 }
 
 func rPop(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("lpop")
+	}
+	if val, err := cli.db.RPop(args[0]); err != nil {
+		return nil, err
+	} else {
+		return val, nil
+	}
 }
 
 func lMove(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 4 {
+		return nil, newWrongNumOfArgsError("lmove")
+	}
+	srcKey, dstKey := args[0], args[1]
+	from, to := bytes.ToLower(args[2]), bytes.ToLower(args[3])
+	var srcIsLeft, dstIsLeft bool
+
+	if string(from) == "left" {
+		srcIsLeft = true
+	} else if string(from) != "right" {
+		return nil, errSyntax
+	}
+	if string(to) == "left" {
+		dstIsLeft = true
+	} else if string(to) != "right" {
+		return nil, errSyntax
+	}
+
+	return cli.db.LMove(srcKey, dstKey, srcIsLeft, dstIsLeft)
 }
 
 func lLen(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("llen")
+	}
+	return cli.db.LLen(args[0]), nil
 }
 
 func lIndex(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("lindex")
+	}
+	index, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, err
+	}
+	return cli.db.LIndex(args[0], index)
 }
 
 func lSet(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
+	if len(args) != 3 {
+		return nil, newWrongNumOfArgsError("lset")
+	}
+	index, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, err
+	}
+	if err := cli.db.LSet(args[0], index, args[2]); err != nil {
+		return nil, err
+	}
 	return resultOK, nil
 }
 
 func lRange(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 3 {
+		return nil, newWrongNumOfArgsError("lrange")
+	}
+	start, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, err
+	}
+	stop, err := strconv.Atoi(string(args[2]))
+	if err != nil {
+		return nil, err
+	}
+	return cli.db.LRange(args[0], start, stop)
 }
 
 // +-------+--------+----------+------------+-----------+-------+---------+
 // |--------------------------- Hash commands ----------------------------|
 // +-------+--------+----------+------------+-----------+-------+---------+
 func hSet(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 || len(args)%2 == 0 {
+		return nil, newWrongNumOfArgsError("hset")
+	}
+	key := args[0]
+	var cnt int
+	for i := 1; i < len(args); i += 2 {
+		err := cli.db.HSet(key, args[i], args[i+1])
+		if err != nil {
+			return nil, err
+		}
+		cnt++
+	}
+	return cnt, nil
 }
 
 func hSetNX(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 3 {
+		return nil, newWrongNumOfArgsError("hsetnx")
+	}
+	if ok, err := cli.db.HSetNX(args[0], args[1], args[2]); err != nil {
+		return nil, err
+	} else if ok {
+		return 1, nil
+	} else {
+		return 0, nil
+	}
 }
 
 func hGet(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("hget")
+	}
+	return cli.db.HGet(args[0], args[1])
 }
 
 func hmGet(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 {
+		return nil, newWrongNumOfArgsError("hmget")
+	}
+	return cli.db.HMGet(args[0], args[1:]...)
 }
 
 func hDel(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 {
+		return nil, newWrongNumOfArgsError("hdel")
+	}
+	return cli.db.HDel(args[0], args[1:]...)
 }
 
 func hExists(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("hdel")
+	}
+	return cli.db.HExists(args[0], args[1])
 }
 
 func hLen(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("hlen")
+	}
+	return cli.db.HLen(args[0]), nil
 }
 
 func hKeys(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("hkeys")
+	}
+	return cli.db.HKeys(args[0])
 }
 
 func hVals(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("hvals")
+	}
+	return cli.db.HVals(args[0])
 }
 
 func hGetAll(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("hgetall")
+	}
+	return cli.db.HGetAll(args[0])
 }
 
 func hStrLen(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("hstrlen")
+	}
+	return cli.db.HStrLen(args[0], args[1]), nil
 }
 
 func hScan(cli *ClientHandle, args [][]byte) (interface{}, error) {
@@ -390,8 +505,14 @@ func hScan(cli *ClientHandle, args [][]byte) (interface{}, error) {
 }
 
 func hIncrBy(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 3 {
+		return nil, newWrongNumOfArgsError("hincrby")
+	}
+	incr, err := util.StrToInt64(string(args[2]))
+	if err != nil {
+		return nil, errValueIsInvalid
+	}
+	return cli.db.HIncrBy(args[0], args[1], incr)
 }
 
 // +-------+--------+----------+------------+-----------+-------+---------+

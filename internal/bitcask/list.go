@@ -227,7 +227,7 @@ func (db *BitcaskDB) LRange(key []byte, start, end int) (values [][]byte, err er
 		return
 	}
 
-	endSeq, err := db.listSequence(headSeq, tailSeq, start)
+	endSeq, err := db.listSequence(headSeq, tailSeq, end)
 	if err != nil {
 		return
 	}
