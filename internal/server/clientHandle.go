@@ -5,7 +5,6 @@ import (
 	"bitcaskDB/internal/log"
 	"bitcaskDB/internal/util"
 	"bytes"
-	"fmt"
 	"io"
 )
 
@@ -28,7 +27,6 @@ func NewClientHandle(conn io.ReadWriteCloser, db *bitcask.BitcaskDB) *ClientHand
 	return &ClientHandle{
 		conn: conn,
 		db:   db,
-		// ctx:  ctx,
 	}
 }
 
@@ -50,12 +48,12 @@ func (cli *ClientHandle) Handle() {
 		command, args := bytes.ToLower(parts[0]), parts[1:]
 		cmdFunc, ok := supportedCommands[string(command)]
 		if !ok {
-			cli.conn.Write([]byte(fmt.Sprintf("ERR unknown command '%s'", command)))
+			cli.conn.Write([]byte(util.NewErrUnknownCMD(command, args).Error()))
 			continue
 		}
 
-		if string(command) == "QUIT" {
-			return
+		if string(command) == "quit" {
+			break
 		}
 
 		if res, err := cmdFunc(cli, args); err != nil {
@@ -73,6 +71,10 @@ func (cli *ClientHandle) Handle() {
 
 func (cli *ClientHandle) close() {
 	log.Info("close client....")
-	cli.db.Close()
-	cli.conn.Close()
+	// cli.db.Close() 好像不用关 其他用户也要用
+	if err := cli.conn.Close(); err != nil {
+		log.Errorf("close conn err : %v", err)
+	} else {
+		log.Info("close client success....")
+	}
 }

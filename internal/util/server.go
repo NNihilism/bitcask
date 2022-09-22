@@ -55,3 +55,10 @@ func sliceToBSlice(vi interface{}) (res []byte) {
 		return bytes.Join(parts[:len(parts)-1], []byte(""))
 	}
 }
+
+func NewErrUnknownCMD(cmd []byte, args [][]byte) error {
+	for i, arg := range args {
+		args[i] = []byte(fmt.Sprintf("'%s'", arg))
+	}
+	return fmt.Errorf("(error) ERR unknown command '%s', with args beginning with: %s", cmd, bytes.Join(args, []byte(", ")))
+}

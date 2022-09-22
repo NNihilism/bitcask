@@ -73,13 +73,15 @@ func main() {
 	go listen(listener, db)
 
 	defer func() {
+		log.Info("start clos server...")
+
 		listener.Close()
 		for _, db := range dbs {
 			if err := db.Close(); err != nil {
 				log.Errorf("close db err : %v", err)
 			}
 		}
-		log.Info("close bitcaskDB success...")
+		log.Info("close server success...")
 	}()
 
 	<-sig // Wait for quitting.
@@ -87,6 +89,7 @@ func main() {
 
 func listen(listener net.Listener, defaultDB *bitcask.BitcaskDB) {
 	for {
+		fmt.Println(listener)
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Errorf("accept err : %v", err)
@@ -94,6 +97,11 @@ func listen(listener net.Listener, defaultDB *bitcask.BitcaskDB) {
 		log.Infof("new conn : %v", conn.LocalAddr())
 
 		clientHandle := server.NewClientHandle(conn, defaultDB)
-		go clientHandle.Handle()
+		if clientHandle == nil {
+			log.Info("nil....")
+		} else {
+			go clientHandle.Handle()
+
+		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -43,7 +44,9 @@ func main() {
 		var buffer [1024]byte
 		n, err := conn.Read(buffer[:])
 		if err != nil {
-			log.Errorf("conn read err %v", err)
+			if err != io.EOF {
+				log.Errorf("conn read err %v", err)
+			}
 			return
 		}
 		fmt.Println(string(buffer[:n]))
