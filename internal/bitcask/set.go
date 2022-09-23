@@ -4,13 +4,12 @@ import (
 	"bitcaskDB/internal/ds/art"
 	"bitcaskDB/internal/logfile"
 	"bitcaskDB/internal/util"
-	"fmt"
 )
 
 // SAdd add the specified members to the set stored at key.
 // Specified members that are already a member of this set are ignored.
 // If key does not exist, a new set is created before adding the specified members.
-func (db *BitcaskDB) SAdd(key []byte, members ...[]byte) error {
+func (db *BitcaskDB) SAdd(key []byte, members ...[]byte) (int, error) {
 	db.setIndex.mu.Lock()
 	defer db.setIndex.mu.Unlock()
 
@@ -19,14 +18,14 @@ func (db *BitcaskDB) SAdd(key []byte, members ...[]byte) error {
 	}
 	idxTree := db.setIndex.trees[string(key)]
 
+	var cnt int
 	for _, mem := range members {
 		if len(mem) == 0 {
 			continue
 		}
 
 		if err := db.setIndex.murhash.Write(mem); err != nil {
-			fmt.Println("err")
-			return err
+			return cnt, err
 		}
 		sum := db.setIndex.murhash.EncodeSum128()
 		db.setIndex.murhash.Reset()
@@ -40,14 +39,15 @@ func (db *BitcaskDB) SAdd(key []byte, members ...[]byte) error {
 		ent := &logfile.LogEntry{Key: key, Value: mem}
 		pos, err := db.writeLogEntry(ent, Set)
 		if err != nil {
-			return err
+			return cnt, err
 		}
 		ent.Key = sum
 		if err := db.updateIndexTree(idxTree, ent, pos, true, Set); err != nil {
-			return err
+			return cnt, err
 		}
+		cnt++
 	}
-	return nil
+	return cnt, nil
 }
 
 // SPop removes and returns one or more random members from the set value store at key.
@@ -76,7 +76,7 @@ func (db *BitcaskDB) SPop(key []byte, count uint) ([][]byte, error) {
 	}
 
 	for _, val := range values {
-		if err := db.sremInternal(key, val); err != nil {
+		if _, err := db.sremInternal(key, val); err != nil {
 			return nil, err
 		}
 	}
@@ -86,20 +86,23 @@ func (db *BitcaskDB) SPop(key []byte, count uint) ([][]byte, error) {
 // SRem remove the specified members from the set stored at key.
 // Specified members that are not a member of this set are ignored.
 // If key does not exist, it is treated as an empty set and this command returns 0.
-func (db *BitcaskDB) SRem(key []byte, members ...[]byte) error {
+func (db *BitcaskDB) SRem(key []byte, members ...[]byte) (int, error) {
 	db.setIndex.mu.Lock()
 	defer db.setIndex.mu.Unlock()
 
 	if db.setIndex.trees[string(key)] == nil {
-		return nil
+		return 0, nil
 	}
 
+	var cnt int
 	for _, mem := range members {
-		if err := db.sremInternal(key, mem); err != nil {
-			return err
+		if update, err := db.sremInternal(key, mem); err != nil {
+			return cnt, err
+		} else if update {
+			cnt++
 		}
 	}
-	return nil
+	return cnt, nil
 
 }
 
@@ -215,29 +218,29 @@ func (db *BitcaskDB) SUnion(keys ...[]byte) ([][]byte, error) {
 	return values, nil
 }
 
-func (db *BitcaskDB) sremInternal(key []byte, member []byte) error {
+func (db *BitcaskDB) sremInternal(key []byte, member []byte) (bool, error) {
 	idxTree := db.setIndex.trees[string(key)]
 
 	if err := db.setIndex.murhash.Write(member); err != nil {
-		return err
+		return false, err
 	}
 	sum := db.setIndex.murhash.EncodeSum128()
 	db.setIndex.murhash.Reset()
 
 	oldVal, updated := idxTree.Delete(sum)
 	if !updated {
-		return nil
+		return false, nil
 	}
 	entry := &logfile.LogEntry{Key: key, Value: member, Type: logfile.TypeDelete}
 	pos, err := db.writeLogEntry(entry, Set)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	db.sendDiscard(oldVal, updated, Set)
 	idxNode := &indexNode{fid: pos.fid, offset: pos.offset, entrySize: pos.entrySize}
 	db.sendDiscard(idxNode, true, Set)
-	return nil
+	return true, nil
 }
 
 // sMembers is a helper method to get all members of the given set key.

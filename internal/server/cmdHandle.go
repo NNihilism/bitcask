@@ -19,6 +19,7 @@ const (
 var (
 	errSyntax            = errors.New("ERR syntax error ")
 	errValueIsInvalid    = errors.New("ERR value is not an integer or out of range")
+	errFloatIsInvalid    = errors.New("ERR value is not a valid float")
 	errDBIndexOutOfRange = errors.New("ERR DB index is out of range")
 )
 
@@ -238,7 +239,7 @@ func decrBy(cli *ClientHandle, args [][]byte) (interface{}, error) {
 	key, decrVal := args[0], args[1]
 	decrInt64, err := util.StrToInt64(string(decrVal))
 	if err != nil {
-		return nil, err
+		return nil, errValueIsInvalid
 	}
 	return cli.db.DecrBy(key, decrInt64)
 }
@@ -258,7 +259,7 @@ func incrBy(cli *ClientHandle, args [][]byte) (interface{}, error) {
 	key, decrVal := args[0], args[1]
 	decrInt64, err := util.StrToInt64(string(decrVal))
 	if err != nil {
-		return nil, err
+		return nil, errValueIsInvalid
 	}
 	return cli.db.IncrBy(key, decrInt64)
 }
@@ -370,7 +371,7 @@ func lIndex(cli *ClientHandle, args [][]byte) (interface{}, error) {
 	}
 	index, err := strconv.Atoi(string(args[1]))
 	if err != nil {
-		return nil, err
+		return nil, errValueIsInvalid
 	}
 	return cli.db.LIndex(args[0], index)
 }
@@ -381,7 +382,7 @@ func lSet(cli *ClientHandle, args [][]byte) (interface{}, error) {
 	}
 	index, err := strconv.Atoi(string(args[1]))
 	if err != nil {
-		return nil, err
+		return nil, errValueIsInvalid
 	}
 	if err := cli.db.LSet(args[0], index, args[2]); err != nil {
 		return nil, err
@@ -395,11 +396,11 @@ func lRange(cli *ClientHandle, args [][]byte) (interface{}, error) {
 	}
 	start, err := strconv.Atoi(string(args[1]))
 	if err != nil {
-		return nil, err
+		return nil, errValueIsInvalid
 	}
 	stop, err := strconv.Atoi(string(args[2]))
 	if err != nil {
-		return nil, err
+		return nil, errValueIsInvalid
 	}
 	return cli.db.LRange(args[0], start, stop)
 }
@@ -519,43 +520,64 @@ func hIncrBy(cli *ClientHandle, args [][]byte) (interface{}, error) {
 // |---------------------------- Set commands ----------------------------|
 // +-------+--------+----------+------------+-----------+-------+---------+
 func sAdd(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 {
+		return nil, newWrongNumOfArgsError("sadd")
+	}
+	return cli.db.SAdd(args[0], args[1:]...)
+	// return resultOK, nil
 }
 
 func sRem(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) < 2 {
+		return nil, newWrongNumOfArgsError("srem")
+	}
+	return cli.db.SRem(args[0], args[1:]...)
 }
 
 func sPop(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("spop")
+	}
+	count, err := util.StrToUint(string(args[1]))
+	if err != nil {
+		return nil, errValueIsInvalid
+	}
+	return cli.db.SPop(args[0], uint(count))
 }
 
 func sIsMember(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("sismember")
+	}
+	return cli.db.SIsMember(args[0], args[1]), nil
 }
 
 func sMembers(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("smembers")
+	}
+	return cli.db.SMembers(args[0])
 }
 
 func sCard(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("scard")
+	}
+	return cli.db.SCard(args[0]), nil
 }
 
 func sDiff(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) == 0 {
+		return nil, newWrongNumOfArgsError("sdiff")
+	}
+	return cli.db.SDiff(args...)
 }
 
 func sUnion(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) == 0 {
+		return nil, newWrongNumOfArgsError("sdiff")
+	}
+	return cli.db.SUnion(args...)
 }
 
 // +-------+--------+----------+------------+-----------+-------+---------+
@@ -563,43 +585,99 @@ func sUnion(cli *ClientHandle, args [][]byte) (interface{}, error) {
 // +-------+--------+----------+------------+-----------+-------+---------+
 
 func zAdd(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 3 {
+		return nil, newWrongNumOfArgsError("zadd")
+	}
+	score, err := strconv.ParseFloat(string(args[1]), 64)
+	if err != nil {
+		return 0, errFloatIsInvalid
+	}
+	if err := cli.db.ZAdd(args[0], score, args[2]); err != nil {
+		return nil, err
+	}
+	return 1, nil
 }
 
 func zScore(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("zscore")
+	}
+	if ok, score := cli.db.ZScore(args[0], args[1]); !ok {
+		return nil, nil
+	} else {
+		return score, nil
+	}
 }
 
 func zRem(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("zrem")
+	}
+	if err := cli.db.ZRem(args[0], args[1]); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func zCard(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("zcard")
+	}
+	return cli.db.ZCard(args[0]), nil
 }
 
 func zRange(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 3 {
+		return nil, newWrongNumOfArgsError("zrange")
+	}
+
+	start, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, errValueIsInvalid
+	}
+
+	stop, err := strconv.Atoi(string(args[2]))
+	if err != nil {
+		return nil, errValueIsInvalid
+	}
+	return cli.db.ZRange(args[0], start, stop)
 }
 
 func zRevRange(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 3 {
+		return nil, newWrongNumOfArgsError("zrevrange")
+	}
+
+	start, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		return nil, errValueIsInvalid
+	}
+
+	stop, err := strconv.Atoi(string(args[2]))
+	if err != nil {
+		return nil, errValueIsInvalid
+	}
+	return cli.db.ZRevRange(args[0], start, stop)
 }
 
 func zRank(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("zrank")
+	}
+	if ok, rank := cli.db.ZRank(args[0], args[1]); ok {
+		return rank, nil
+	}
+	return nil, nil
 }
 
 func zRevRank(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// TODO
-	return resultOK, nil
+	if len(args) != 2 {
+		return nil, newWrongNumOfArgsError("zrevrank")
+	}
+	if ok, rank := cli.db.ZRevRank(args[0], args[1]); ok {
+		return rank, nil
+	}
+	return nil, nil
 }
 
 // +-------+--------+----------+------------+-----------+-------+---------+
@@ -627,7 +705,14 @@ func info(cli *ClientHandle, args [][]byte) (interface{}, error) {
 // |-------------------- connection management commands ------------------|
 // +-------+--------+----------+------------+-----------+-------+---------+
 func selectDB(cli *ClientHandle, args [][]byte) (interface{}, error) {
-	// todo
+	if len(args) != 1 {
+		return nil, newWrongNumOfArgsError("select")
+	}
+	index, err := strconv.Atoi(string(args[0]))
+	if err != nil || index < 0 || index >= len(cli.dbs) {
+		return nil, errValueIsInvalid
+	}
+	cli.db = cli.dbs[index]
 	return resultOK, nil
 }
 

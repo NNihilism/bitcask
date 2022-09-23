@@ -17,15 +17,15 @@ func main() {
 	}
 	defer db.Close()
 
-	// err = db.SAdd([]byte("fruits"), []byte("watermelon"), []byte("grape"), []byte("orange"), []byte("apple"))
-	// if err != nil {
-	// 	fmt.Printf("SAdd error: %v", err)
-	// }
+	_, err = db.SAdd([]byte("fruits"), []byte("watermelon"), []byte("grape"), []byte("orange"), []byte("apple"))
+	if err != nil {
+		fmt.Printf("SAdd error: %v", err)
+	}
 
-	// err = db.SAdd([]byte("fav-fruits"), []byte("orange"), []byte("melon"), []byte("strawberry"))
-	// if err != nil {
-	// 	fmt.Printf("SAdd error: %v", err)
-	// }
+	_, err = db.SAdd([]byte("fav-fruits"), []byte("orange"), []byte("melon"), []byte("strawberry"))
+	if err != nil {
+		fmt.Printf("SAdd error: %v", err)
+	}
 
 	diffSet, err := db.SDiff([]byte("fruits"), []byte("fav-fruits"))
 	if err != nil {
