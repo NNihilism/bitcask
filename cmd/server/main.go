@@ -47,16 +47,19 @@ func main() {
 	flag.UintVar(&serverOpts.databases, "databases", defaultDatabasesNum, "the number of databases")
 	flag.Parse()
 
-	// open a default database
-	path := filepath.Join(serverOpts.dbPath, fmt.Sprintf(dbName, 0))
-	opts := options.DefaultOptions(path)
-	now := time.Now()
-	db, err := bitcask.Open(opts)
-	if err != nil {
-		log.Errorf("open db err, fail to start server. %v", err)
-		return
+	// open databases and choose the first db as default db
+	for i := uint(0); i < defaultDatabasesNum; i++ {
+		path := filepath.Join(serverOpts.dbPath, fmt.Sprintf(dbName, 0))
+		opts := options.DefaultOptions(path)
+		now := time.Now()
+		db, err := bitcask.Open(opts)
+		if err != nil {
+			log.Errorf("open db err, fail to start server. %v", err)
+			return
+		}
+		log.Infof("open db from [%s] successfully, time cost: %v", serverOpts.dbPath, time.Since(now))
+		dbs = append(dbs, db)
 	}
-	log.Infof("open db from [%s] successfully, time cost: %v", serverOpts.dbPath, time.Since(now))
 
 	// quit signal
 	sig := make(chan os.Signal, 1)
@@ -70,7 +73,7 @@ func main() {
 	}
 	log.Infof("start listen at %v", listener.Addr().String())
 
-	go listen(listener, db)
+	go listen(listener)
 
 	defer func() {
 		listener.Close()
@@ -85,7 +88,7 @@ func main() {
 	<-sig // Wait for quitting.
 }
 
-func listen(listener net.Listener, defaultDB *bitcask.BitcaskDB) {
+func listen(listener net.Listener) {
 	for {
 		fmt.Println(listener)
 		conn, err := listener.Accept()
@@ -94,7 +97,7 @@ func listen(listener net.Listener, defaultDB *bitcask.BitcaskDB) {
 		}
 		log.Infof("new conn : %v", conn.LocalAddr())
 
-		clientHandle := server.NewClientHandle(conn, defaultDB)
+		clientHandle := server.NewClientHandle(conn, dbs[0], dbs)
 
 		go clientHandle.Handle()
 

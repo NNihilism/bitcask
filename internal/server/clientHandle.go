@@ -21,12 +21,12 @@ type ClientHandle struct {
 	conn io.ReadWriteCloser
 	db   *bitcask.BitcaskDB
 	dbs  []*bitcask.BitcaskDB
-	// ctx  context.Context
 }
 
-func NewClientHandle(conn io.ReadWriteCloser, db *bitcask.BitcaskDB, dsb []*bitcask.BitcaskDB) *ClientHandle {
+func NewClientHandle(conn io.ReadWriteCloser, db *bitcask.BitcaskDB, dbs []*bitcask.BitcaskDB) *ClientHandle {
 	return &ClientHandle{
 		conn: conn,
+		dbs:  dbs,
 		db:   db,
 	}
 }
