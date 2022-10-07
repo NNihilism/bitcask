@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	cmdBufferSize = 1024
+	CmdBufferSize = 1024
+	MaxHeaderLength
 )
 
 // var (
@@ -36,7 +37,7 @@ func (cli *ClientHandle) Handle() {
 	defer cli.close()
 
 	for {
-		buffer := make([]byte, cmdBufferSize)
+		buffer := make([]byte, CmdBufferSize)
 		n, err := cli.conn.Read(buffer) // block read....
 		if err != nil {
 			log.Errorf("conn read err : %v", err)
@@ -44,7 +45,7 @@ func (cli *ClientHandle) Handle() {
 		}
 
 		length, offset := binary.Uvarint(buffer)
-		if int(length) <= cmdBufferSize-offset { // buffer is large enough to receive the msg
+		if int(length) <= CmdBufferSize-offset { // buffer is large enough to receive the msg
 			buffer = buffer[offset:n]
 		} else {
 			tmp := buffer[offset:]
@@ -64,7 +65,8 @@ func (cli *ClientHandle) Handle() {
 		command, args := bytes.ToLower(parts[0]), parts[1:]
 		cmdFunc, ok := supportedCommands[string(command)]
 		if !ok {
-			cli.conn.Write([]byte(util.NewErrUnknownCMD(command, args).Error()))
+			cli.WriteResult([]byte(util.NewErrUnknownCMD(command, args).Error()))
+			// cli.conn.Write([]byte(util.NewErrUnknownCMD(command, args).Error()))
 			continue
 		}
 
@@ -74,13 +76,17 @@ func (cli *ClientHandle) Handle() {
 
 		if res, err := cmdFunc(cli, args); err != nil {
 			if err == bitcask.ErrKeyNotFound {
-				cli.conn.Write([]byte("(nil)"))
+				cli.WriteResult([]byte("(nil)"))
+				// cli.conn.Write([]byte("(nil)"))
 			} else {
-				cli.conn.Write([]byte("(error) " + err.Error()))
+				cli.WriteResult([]byte("(error) " + err.Error()))
+
+				// cli.conn.Write([]byte("(error) " + err.Error()))
 			}
 		} else {
 			// 通过反射判断数据类型，再统一转成[]byte形式？
-			cli.conn.Write(util.ConvertToBSlice(res))
+			// cli.conn.Write(util.ConvertToBSlice(res))
+			cli.WriteResult(util.ConvertToBSlice(res))
 		}
 	}
 }
@@ -93,4 +99,14 @@ func (cli *ClientHandle) close() {
 	} else {
 		log.Info("close client success....")
 	}
+}
+
+func (cli *ClientHandle) WriteResult(res []byte) {
+	// The format of msg is [header(the length of data) + data]
+	header := make([]byte, MaxHeaderLength)
+	n := binary.PutUvarint(header, uint64(len(res)))
+	msg := make([]byte, n+len(res))
+	copy(msg, header[:n])
+	copy(msg[n:], res)
+	cli.conn.Write(msg)
 }

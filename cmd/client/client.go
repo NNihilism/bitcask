@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strings"
@@ -19,6 +18,7 @@ var (
 
 const (
 	MaxHeaderLength = 12 // Use up to 12 bytes to represent the length
+	CmdBufferSize   = 10
 )
 
 type ServerOptions struct {
@@ -42,10 +42,12 @@ func main() {
 
 	input := bufio.NewReader(os.Stdin)
 	for {
+		// Read CMD
 		fmt.Printf("%s> ", serverOpts.host+":"+serverOpts.port)
 		cmdStr, _ := input.ReadString('\n')
 		cmdStr = strings.Trim(cmdStr, "\r\n")
 
+		// Handle CMD
 		// The format of msg is [header(the length of data) + data]
 		cmdByteArr := []byte(cmdStr)
 		header := make([]byte, MaxHeaderLength)
@@ -54,19 +56,43 @@ func main() {
 		copy(msg, header[:n])
 		copy(msg[n:], cmdByteArr)
 
+		// Send CMD
 		if _, err := conn.Write([]byte(msg)); err != nil {
 			log.Errorf("conn write err %v", err)
 			return
 		}
 
-		var buffer [1024]byte
-		n, err := conn.Read(buffer[:])
+		// Receive result
+		buffer := make([]byte, CmdBufferSize)
+		n, err := conn.Read(buffer) // block read....
 		if err != nil {
-			if err != io.EOF {
-				log.Errorf("conn read err %v", err)
-			}
+			log.Errorf("conn read err : %v", err)
 			return
 		}
-		fmt.Println(string(buffer[:n]))
+
+		length, offset := binary.Uvarint(buffer)
+		if int(length) <= CmdBufferSize-offset { // buffer is large enough to receive the msg
+			buffer = buffer[offset:n]
+		} else {
+			tmp := buffer[offset:]
+			buffer = make([]byte, int(length)) // make a new buffer, which is large enough to receive the msg
+			copy(buffer, tmp)
+			_, err := conn.Read(buffer[n-offset:]) // 这里是否该改成非阻塞读？
+			if err != nil {
+				log.Errorf("conn read err : %v", err)
+				return
+			}
+		}
+
+		// var buffer [1024]byte
+		// n, err := conn.Read(buffer[:])
+		// if err != nil {
+		// 	if err != io.EOF {
+		// 		log.Errorf("conn read err %v", err)
+		// 	}
+		// 	return
+		// }
+		// Show result
+		fmt.Println(string(buffer))
 	}
 }
