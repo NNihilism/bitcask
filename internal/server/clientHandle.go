@@ -5,6 +5,7 @@ import (
 	"bitcaskDB/internal/log"
 	"bitcaskDB/internal/util"
 	"bytes"
+	"encoding/binary"
 	"io"
 )
 
@@ -36,16 +37,30 @@ func (cli *ClientHandle) Handle() {
 
 	for {
 		buffer := make([]byte, cmdBufferSize)
-		n, err := cli.conn.Read(buffer)
-
+		n, err := cli.conn.Read(buffer) // block read....
 		if err != nil {
 			log.Errorf("conn read err : %v", err)
 			return
 		}
-		log.Infof("receive cmd : %s", buffer[:n])
+
+		length, offset := binary.Uvarint(buffer)
+		if int(length) <= cmdBufferSize-offset { // buffer is large enough to receive the msg
+			buffer = buffer[offset:n]
+		} else {
+			tmp := buffer[offset:]
+			buffer = make([]byte, int(length)) // make a new buffer, which is large enough to receive the msg
+			copy(buffer, tmp)
+			_, err := cli.conn.Read(buffer[n-offset:]) // 这里是否该改成非阻塞读？
+			if err != nil {
+				log.Errorf("conn read err : %v", err)
+				return
+			}
+		}
+
+		log.Infof("receive cmd : [%s]", buffer)
 
 		// The command format is [cmd] [key/value]...
-		parts := bytes.Split(bytes.TrimSpace(buffer[:n]), []byte(" "))
+		parts := bytes.Split(bytes.TrimSpace(buffer), []byte(" "))
 		command, args := bytes.ToLower(parts[0]), parts[1:]
 		cmdFunc, ok := supportedCommands[string(command)]
 		if !ok {

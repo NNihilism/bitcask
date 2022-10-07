@@ -7,6 +7,7 @@ import (
 	"bitcaskDB/internal/server"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -18,7 +19,7 @@ import (
 var (
 	defaultDBPath            = filepath.Join("/tmp", "bitcaskDB")
 	defaultHost              = "127.0.0.1"
-	defaultPort              = "5200"
+	defaultPort              = "55201"
 	defaultDatabasesNum uint = 16
 )
 
@@ -38,6 +39,12 @@ type ServerOptions struct {
 	databases uint
 }
 
+func init() {
+	path := "../../internal/resource/banner.txt"
+	banner, _ := ioutil.ReadFile(path)
+	fmt.Println(string(banner))
+}
+
 func main() {
 	// init server config
 	serverOpts = new(ServerOptions)
@@ -48,18 +55,18 @@ func main() {
 	flag.Parse()
 
 	// open databases and choose the first db as default db
+	now := time.Now()
 	for i := uint(0); i < defaultDatabasesNum; i++ {
-		path := filepath.Join(serverOpts.dbPath, fmt.Sprintf(dbName, 0))
+		path := filepath.Join(serverOpts.dbPath, fmt.Sprintf(dbName, i))
 		opts := options.DefaultOptions(path)
-		now := time.Now()
 		db, err := bitcask.Open(opts)
 		if err != nil {
 			log.Errorf("open db err, fail to start server. %v", err)
 			return
 		}
-		log.Infof("open db from [%s] successfully, time cost: %v", serverOpts.dbPath, time.Since(now))
 		dbs = append(dbs, db)
 	}
+	log.Infof("open db from [%s] successfully, time cost: %v", serverOpts.dbPath, time.Since(now))
 
 	// quit signal
 	sig := make(chan os.Signal, 1)
@@ -90,8 +97,8 @@ func main() {
 
 func listen(listener net.Listener) {
 	for {
-		fmt.Println(listener)
 		conn, err := listener.Accept()
+
 		if err != nil {
 			log.Errorf("accept err : %v", err)
 		}

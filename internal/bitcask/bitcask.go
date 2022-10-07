@@ -386,7 +386,7 @@ func (db *BitcaskDB) handleLogFileGC() {
 	// signal.Notify(quitSig, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	signal.Notify(quitSig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	log.Info("FileGC started successfully")
+	// log.Info("FileGC started successfully")
 
 	for {
 		select {

@@ -3,16 +3,22 @@ package main
 import (
 	"bitcaskDB/internal/log"
 	"bufio"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"io"
 	"net"
 	"os"
+	"strings"
 )
 
 var (
 	defaultHost = "127.0.0.1"
-	defaultPort = "5200"
+	defaultPort = "55201"
+)
+
+const (
+	MaxHeaderLength = 12 // Use up to 12 bytes to represent the length
 )
 
 type ServerOptions struct {
@@ -27,6 +33,8 @@ func main() {
 	flag.StringVar(&serverOpts.port, "port", defaultPort, "server port")
 	flag.Parse()
 	conn, err := net.Dial("tcp", serverOpts.host+":"+serverOpts.port)
+	log.Info("Client address : ", conn.LocalAddr().String())
+	// conn.LocalAddr().String()
 	if err != nil {
 		log.Errorf("dial err : %v", err)
 	}
@@ -35,8 +43,18 @@ func main() {
 	input := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf("%s> ", serverOpts.host+":"+serverOpts.port)
-		s, _ := input.ReadString('\n')
-		if _, err := conn.Write([]byte(s)); err != nil {
+		cmdStr, _ := input.ReadString('\n')
+		cmdStr = strings.Trim(cmdStr, "\r\n")
+
+		// The format of msg is [header(the length of data) + data]
+		cmdByteArr := []byte(cmdStr)
+		header := make([]byte, MaxHeaderLength)
+		n := binary.PutUvarint(header, uint64(len(cmdByteArr)))
+		msg := make([]byte, n+len(cmdByteArr))
+		copy(msg, header[:n])
+		copy(msg[n:], cmdByteArr)
+
+		if _, err := conn.Write([]byte(msg)); err != nil {
 			log.Errorf("conn write err %v", err)
 			return
 		}
@@ -51,5 +69,4 @@ func main() {
 		}
 		fmt.Println(string(buffer[:n]))
 	}
-
 }
