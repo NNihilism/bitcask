@@ -108,5 +108,7 @@ func (cli *ClientHandle) WriteResult(res []byte) {
 	msg := make([]byte, n+len(res))
 	copy(msg, header[:n])
 	copy(msg[n:], res)
-	cli.conn.Write(msg)
+	if _, err := cli.conn.Write(msg); err != nil {
+		log.Errorf("write result err : [%v]", err)
+	}
 }
