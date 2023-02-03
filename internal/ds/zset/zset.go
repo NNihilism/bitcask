@@ -72,7 +72,6 @@ func (z *SortedSet) IterateAndSend(chn chan *logfile.LogEntry, encode EncodeKey)
 // ZAdd Adds the specified member with the specified score to the sorted set stored at key.
 func (z *SortedSet) ZAdd(key string, score float64, member string) {
 	if !z.exist(key) {
-
 		node := &SortedSetNode{
 			dict: make(map[string]*sklNode),
 			skl:  newSkipList(),
@@ -447,6 +446,8 @@ func newSkipList() *skipList {
 
 func randomLevel() int16 {
 	var level int16 = 1
+	// 使用位运算提高了浮点数比较的效率
+	// 0xffff < 0.25 * 0xffff的概率为 1/4 ?
 	for float32(rand.Int31()&0xFFFF) < (probability * 0xFFFF) {
 		level++
 	}
@@ -475,11 +476,11 @@ func (skl *skipList) sklInsert(score float64, member string) *sklNode {
 				(p.level[i].forward.score < score ||
 					(p.level[i].forward.score == score && p.level[i].forward.member < member)) {
 
-				rank[i] += p.level[i].span // 目前看来是记录每一层的span
+				rank[i] += p.level[i].span // 记录下新节点每一层前驱指针的排名
 				p = p.level[i].forward
 			}
 		}
-		updates[i] = p
+		updates[i] = p // 记录下需要更新的节点，即新插入节点每一层的上一节点
 	}
 
 	level := randomLevel()
@@ -495,18 +496,18 @@ func (skl *skipList) sklInsert(score float64, member string) *sklNode {
 	p = sklNewNode(level, score, member)
 	for i := int16(0); i < level; i++ {
 		p.level[i].forward = updates[i].level[i].forward
-		updates[i].level[i].forward = p
+		updates[i].level[i].forward = p // 更新新节点的前驱节点，使其部分level指向自己
 
-		// 有点没理解
+		// 更新跨度
 		p.level[i].span = updates[i].level[i].span - (rank[0] - rank[i])
 		updates[i].level[i].span = (rank[0] - rank[i]) + 1
 	}
 
-	for i := level; i < skl.level; i++ {
+	for i := level; i < skl.level; i++ { // 高过新插入节点高度的层数，跨度+1
 		updates[i].level[i].span++
 	}
 
-	if updates[0] == skl.head {
+	if updates[0] == skl.head { // backward不会指向头指针head
 		p.backward = nil
 	} else {
 		p.backward = updates[0]

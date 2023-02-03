@@ -35,6 +35,10 @@ type Client struct {
 
 func NewClient(network, host, port string) *Client {
 	conn, err := net.Dial(network, host+":"+port)
+	// conn.SetDeadline(time.Now().Add(time.Second))	// cancel block
+	// time.After()
+	// t := time.AfterFunc(time.Second, func() {})
+	// t.Reset()
 	if err != nil {
 		log.Errorf("Dial err [%v]", err)
 		return nil
@@ -159,4 +163,46 @@ func (cl *Client) Close() {
 
 func (cl *Client) done() {
 	cl.Done <- struct{}{}
+}
+
+// Send sent cmd to server
+// Just for benchmark test.
+func (cl *Client) Send(cmd []byte) error {
+	if _, err := cl.conn.Write(cmd); err != nil {
+		log.Errorf("conn write err %v", err)
+		return err
+	}
+	return nil
+}
+
+// Receive result from server
+// Just for benchmark test.
+func (cl *Client) Receive() (string, error) {
+	// Receive result
+	buffer := make([]byte, CmdBufferSize)
+	n, err := cl.conn.Read(buffer) // block read....
+	if err != nil {
+		if err != io.EOF {
+			log.Errorf("conn read err : %v", err)
+		}
+		// cl.done()
+		return "", err
+	}
+
+	length, offset := binary.Uvarint(buffer)
+	if int(length) <= CmdBufferSize-offset { // buffer is large enough to receive the msg
+		buffer = buffer[offset:n]
+	} else {
+		tmp := buffer[offset:]
+		buffer = make([]byte, int(length)) // make a new buffer, which is large enough to receive the msg
+		copy(buffer, tmp)
+		_, err := cl.conn.Read(buffer[n-offset:]) // Should change to non-block read?
+		if err != nil {
+			log.Errorf("conn read err : %v", err)
+			// cl.done()
+			return "", err
+		}
+	}
+	return string(buffer), nil
+	// cl.result <- string(buffer)
 }

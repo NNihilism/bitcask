@@ -69,7 +69,7 @@ func (cli *ClientHandle) Handle() {
 			// cli.conn.Write([]byte(util.NewErrUnknownCMD(command, args).Error()))
 			continue
 		}
-
+		
 		if string(command) == "quit" {
 			break
 		}
@@ -77,11 +77,8 @@ func (cli *ClientHandle) Handle() {
 		if res, err := cmdFunc(cli, args); err != nil {
 			if err == bitcask.ErrKeyNotFound {
 				cli.WriteResult([]byte("(nil)"))
-				// cli.conn.Write([]byte("(nil)"))
 			} else {
 				cli.WriteResult([]byte("(error) " + err.Error()))
-
-				// cli.conn.Write([]byte("(error) " + err.Error()))
 			}
 		} else {
 			// 通过反射判断数据类型，再统一转成[]byte形式？

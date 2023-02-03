@@ -12,7 +12,7 @@ func main() {
 	opts := options.DefaultOptions(path)
 	db, err := bitcask.Open(opts)
 	if err != nil {
-		fmt.Printf("open rosedb err: %v", err)
+		fmt.Printf("open bitcaskDB err: %v", err)
 		return
 	}
 
