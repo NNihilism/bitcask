@@ -16,7 +16,7 @@ var db *bitcask.BitcaskDB
 
 func init() {
 	// path := filepath.Join("/data")
-	path := "D:" + string(os.PathSeparator) + "tmp" + string(os.PathSeparator) + "test"
+	path := "E:" + string(os.PathSeparator) + "tmp" + string(os.PathSeparator) + "test"
 	opts := options.DefaultOptions(path)
 	var err error
 	db, err = bitcask.Open(opts)

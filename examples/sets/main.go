@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	path := "D:" + string(os.PathSeparator) + "test"
+	path := "E:" + string(os.PathSeparator) + "test"
 	opts := options.DefaultOptions(path)
 	db, err := bitcask.Open(opts)
 	if err != nil {
