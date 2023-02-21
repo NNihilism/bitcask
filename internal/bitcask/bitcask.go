@@ -116,6 +116,7 @@ const (
 // Open a bitckaskdb instance. You must call close after using it.
 func Open(opts options.Options) (*BitcaskDB, error) {
 	// create the dir if the path does not exist
+	log.Info("path:", opts.DBPath)
 	if !util.PathExist(opts.DBPath) {
 		if err := os.MkdirAll(opts.DBPath, os.ModePerm); err != nil {
 			log.Errorf("Failed to create dir")
