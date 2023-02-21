@@ -69,7 +69,7 @@ func (cli *ClientHandle) Handle() {
 			// cli.conn.Write([]byte(util.NewErrUnknownCMD(command, args).Error()))
 			continue
 		}
-		
+
 		if string(command) == "quit" {
 			break
 		}
