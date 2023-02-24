@@ -1,9 +1,9 @@
 // bitcask-cluster的节点
-package node
+package main
 
 import (
 	"bitcaskDB/internal/bitcask"
-	"bitcaskDB/internal/bitcask_master_slaves/config"
+	"bitcaskDB/internal/bitcask_master_slaves/node/config"
 )
 
 type bitcaskNode struct {
