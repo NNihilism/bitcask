@@ -7,11 +7,9 @@ import (
 	"bitcaskDB/internal/log"
 	"bufio"
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -70,31 +68,12 @@ func (cl *Client) parse(cmd []byte) (cmdHandler, [][]byte, error) {
 	parts := bytes.Split(bytes.TrimSpace(cmd), []byte(" "))
 	command, args := bytes.ToLower(parts[0]), parts[1:]
 	cmdFunc, ok := supportedCommands[string(command)]
-	fmt.Println("command:", string(command))
-	fmt.Println("ok:", ok)
+
 	if !ok {
-		// cl.WriteResult([]byte(util.NewErrUnknownCMD(command, args).Error()))
 		return nil, nil, errno.NewErr(errno.ErrUnknownCMD, &errno.ErrInfo{Cmd: string(command)})
 	}
 
 	return cmdFunc, args, nil
-	/*
-		if string(command) == "quit" {
-			return nil, nil, nil
-		}
-
-		if res, err := cmdFunc(cl, args); err != nil {
-			if err == bitcask.ErrKeyNotFound {
-				cl.WriteResult([]byte("(nil)"))
-			} else {
-				cl.WriteResult([]byte("(error) " + err.Error()))
-			}
-		} else {
-			// 通过反射判断数据类型，再统一转成[]byte形式？
-			// cli.conn.Write(util.ConvertToBSlice(res))
-			cl.WriteResult(util.ConvertToBSlice(res))
-		}
-	*/
 }
 
 func (cl *Client) Start() {
@@ -119,20 +98,6 @@ func (cl *Client) Start() {
 				continue
 			}
 			cl.WriteResult(result.([]byte))
-			// if err := cl.send(cmd); err != nil {
-			// 	cl.done()
-			// 	return
-			// }
-
-			// go cl.receive()
-
-			// select {
-			// case result := <-cl.result:
-			// 	fmt.Println(result)
-			// case <-time.After(DefaultTimeOut):
-			// 	log.Error("Receive Timeout")
-			// 	return
-			// }
 		}
 	}()
 
@@ -150,114 +115,20 @@ func (cl *Client) read() []byte {
 	// Loop until get valid input
 	for {
 		fmt.Printf("%s> ", cl.serverOpts.host+":"+cl.serverOpts.port)
-		cmdStr, _ := cl.input.ReadString('\n')
-		cmdStr = strings.Trim(cmdStr, "\r\n")
+		cmd, _ := cl.input.ReadBytes('\n')
+		cmd = bytes.Trim(cmd, "\r\n")
 
-		if len(cmdStr) == 0 {
+		if len(cmd) == 0 {
 			continue
 		}
-
-		// Handle CMD
-		// The format of msg is [header(the length of data) + data]
-		cmdByteArr := []byte(cmdStr)
-		header := make([]byte, MaxHeaderLength)
-		n := binary.PutUvarint(header, uint64(len(cmdByteArr)))
-		cmd := make([]byte, n+len(cmdByteArr))
-		copy(cmd, header[:n])
-		copy(cmd[n:], cmdByteArr)
-
 		return cmd
 	}
 }
 
-// // Send sent cmd to server
-// func (cl *Client) send(cmd []byte) error {
-// 	if _, err := cl.conn.Write(cmd); err != nil {
-// 		log.Errorf("conn write err %v", err)
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// // Receive result from server
-// func (cl *Client) receive() {
-// 	// Receive result
-// 	buffer := make([]byte, CmdBufferSize)
-// 	n, err := cl.conn.Read(buffer) // block read....
-// 	if err != nil {
-// 		if err != io.EOF {
-// 			log.Errorf("conn read err : %v", err)
-// 		}
-// 		cl.done()
-// 		return
-// 	}
-
-// 	length, offset := binary.Uvarint(buffer)
-// 	if int(length) <= CmdBufferSize-offset { // buffer is large enough to receive the msg
-// 		buffer = buffer[offset:n]
-// 	} else {
-// 		tmp := buffer[offset:]
-// 		buffer = make([]byte, int(length)) // make a new buffer, which is large enough to receive the msg
-// 		copy(buffer, tmp)
-// 		_, err := cl.conn.Read(buffer[n-offset:]) // Should change to non-block read?
-// 		if err != nil {
-// 			log.Errorf("conn read err : %v", err)
-// 			cl.done()
-
-// 		}
-// 	}
-
-// 	cl.result <- string(buffer)
-// }
-
 func (cl *Client) Close() {
-	// if err := cl.rpcClient.; err != nil {
-	// 	log.Errorf("close err : [%v]", err)
-	// }
+
 }
 
-func (cl *Client) done() {
-	cl.Done <- struct{}{}
-}
-
-// Send sent cmd to server
-// Just for benchmark test.
-// func (cl *Client) Send(cmd []byte) error {
-// if _, err := cl.conn.Write(cmd); err != nil {
-// 	log.Errorf("conn write err %v", err)
-// 	return err
-// }
-// return nil
-// }
-
-// Receive result from server
-// Just for benchmark test.
-// func (cl *Client) Receive() (string, error) {
-// 	// Receive result
-// 	buffer := make([]byte, CmdBufferSize)
-// 	n, err := cl.conn.Read(buffer) // block read....
-// 	if err != nil {
-// 		if err != io.EOF {
-// 			log.Errorf("conn read err : %v", err)
-// 		}
-// 		// cl.done()
-// 		return "", err
-// 	}
-
-// 	length, offset := binary.Uvarint(buffer)
-// 	if int(length) <= CmdBufferSize-offset { // buffer is large enough to receive the msg
-// 		buffer = buffer[offset:n]
-// 	} else {
-// 		tmp := buffer[offset:]
-// 		buffer = make([]byte, int(length)) // make a new buffer, which is large enough to receive the msg
-// 		copy(buffer, tmp)
-// 		_, err := cl.conn.Read(buffer[n-offset:]) // Should change to non-block read?
-// 		if err != nil {
-// 			log.Errorf("conn read err : %v", err)
-// 			// cl.done()
-// 			return "", err
-// 		}
-// 	}
-// 	return string(buffer), nil
-// 	// cl.result <- string(buffer)
+// func (cl *Client) done() {
+// 	cl.Done <- struct{}{}
 // }
