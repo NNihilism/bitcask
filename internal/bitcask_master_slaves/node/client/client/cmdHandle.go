@@ -3,15 +3,16 @@ package client
 import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/errno"
+	"bytes"
 	"context"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 type cmdHandler func(client *Client, args [][]byte) (interface{}, error)
 
 var supportedCommands = map[string]cmdHandler{
+
 	// string commands
 	// "set":      set,
 	// "get":      get,
@@ -111,9 +112,9 @@ func quit(client *Client, args [][]byte) (interface{}, error) {
 	return "quit....", nil
 }
 
-func ToString(obj interface{}) (string, error) {
-	typeOfObj := reflect.TypeOf(obj)
-	var sb strings.Builder
+func ToString(obj interface{}) ([]byte, error) {
+	typeOfObj := reflect.TypeOf(obj).Elem()
+	var bf bytes.Buffer
 
 	if typeOfObj.Name() == "InfoResponse" {
 		// type InfoResponse struct {
@@ -122,23 +123,28 @@ func ToString(obj interface{}) (string, error) {
 		// 	MasterReplicationOffset int64  `thrift:"master_replication_offset,3" frugal:"3,default,i64" json:"master_replication_offset"`
 		// 	CurReplicationOffset    int64  `thrift:"cur_replication_offset,4" frugal:"4,default,i64" json:"cur_replication_offset"`
 		// }
+
 		resp := obj.(*node.InfoResponse)
-		sb.WriteString("role:")
-		sb.WriteString(resp.Role)
-		sb.WriteString("\n")
-		sb.WriteString("ConnectedSlaves:")
-		sb.WriteString(strconv.Itoa(int(resp.ConnectedSlaves)))
-		sb.WriteString("\n")
-		sb.WriteString("MasterReplicationOffset:")
-		sb.WriteString(strconv.Itoa(int(resp.MasterReplicationOffset)))
-		sb.WriteString("\n")
-		sb.WriteString("CurReplicationOffset:")
-		sb.WriteString(strconv.Itoa(int(resp.CurReplicationOffset)))
-		sb.WriteString("\n")
+
+		bf.WriteString("role:")
+		bf.WriteString(resp.Role)
+		bf.WriteString("\n")
+
+		bf.WriteString("ConnectedSlaves:")
+		bf.WriteString(strconv.Itoa(int(resp.ConnectedSlaves)))
+		bf.WriteString("\n")
+
+		bf.WriteString("MasterReplicationOffset:")
+		bf.WriteString(strconv.Itoa(int(resp.MasterReplicationOffset)))
+		bf.WriteString("\n")
+
+		bf.WriteString("CurReplicationOffset:")
+		bf.WriteString(strconv.Itoa(int(resp.CurReplicationOffset)))
+		bf.WriteString("\n")
 	} else {
-		return "", errno.NewErr(errno.ErrParseResp, &errno.ErrInfo{Obj: obj})
+		return []byte{}, errno.NewErr(errno.ErrParseResp, &errno.ErrInfo{Obj: obj})
 	}
 
-	return sb.String(), nil
+	return bf.Bytes(), nil
 
 }
