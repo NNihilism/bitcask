@@ -1,30 +1,49 @@
 namespace go node
 
-# enum ErrCode {
-#     SuccessCode                = 0
-#     ServiceErrCode             = 10001
-#     ParamErrCode               = 10002
-#     UserAlreadyExistErrCode    = 10003
-#     AuthorizationFailedErrCode = 10004
-# }
+enum ErrCode {
+    SuccessCode       = 0
+    ServiceErrCode    = 10001
+    ParamErrCode      = 10002
+    SlaveofErrCode    = 10003
+    OpLogEntryErrCode = 10004
+}
 
-# struct BaseResp {
-#     1: i64 status_code
-#     2: string status_message
-#     3: i64 service_time
-# }
+struct BaseResp {
+    1: i64 status_code
+    2: string status_message
+    3: i64 service_time
+}
 
-# 注册从节点
-struct SlaveOfRequest {
+# 向master发送注册请求
+struct RegisterSlaveRequest {
     1: string address   // 从节点地址
     2: string runId  // 从节点的唯一标识
 }
 
-struct SlaveOfRespone {
-    # 1: BaseResp base_resp
-    1: string runId // 主节点的唯一标识
-    2: i64 offset // 服务器的进度
+struct RegisterSlaveResponse {
+    1: BaseResp base_resp
+    2: string runId // 主节点的唯一标识
+    3: i64 offset // 服务器的进度
 }
+
+# client要求所连node发送RegisterSlave请求
+struct SendSlaveofRequest {
+    1: string address   // 目标Master地址
+}
+
+struct SendSlaveofResponse {
+    1: BaseResp base_resp
+}
+# struct SlaveOfRequest {
+#     1: string address   // 从节点地址
+#     2: string runId  // 从节点的唯一标识
+# }
+
+# struct SlaveOfRespone {
+#     1: BaseResp base_resp
+#     2: string runId // 主节点的唯一标识
+#     3: i64 offset // 服务器的进度
+# }
 
 # 数据传输
 enum OperationCode {
@@ -87,7 +106,12 @@ struct InfoResponse {
 
 
 service NodeService {
-    SlaveOfRespone SlaveOf(1: SlaveOfRequest req)
+    # for client
+    SendSlaveofResponse SendSlaveof(1: SendSlaveofRequest req)
+    # for other node
+    RegisterSlaveResponse RegisterSlave(1: RegisterSlaveRequest req)
+
+    
     PSyncResponse PSync(1: PSyncRequest req)
     LogEntryRequest OpLogEntry(1: LogEntryRequest req)
     PingResponse Ping()
