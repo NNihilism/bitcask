@@ -1,7 +1,7 @@
 package consts
 
 const (
-	NodeAddr        = ":8989"
+	NodeAddr        = ":8991"
 	TCP             = "tcp"
 	NodeServiceName = "node"
 )
