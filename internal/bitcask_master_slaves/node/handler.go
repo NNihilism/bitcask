@@ -9,12 +9,6 @@ import (
 // NodeServiceImpl implements the last service interface defined in the IDL.
 type NodeServiceImpl struct{}
 
-// SlaveOf implements the NodeServiceImpl interface.
-func (s *NodeServiceImpl) SlaveOf(ctx context.Context, req *node.SlaveOfRequest) (resp *node.SlaveOfRespone, err error) {
-	// TODO: Your code here...
-	return
-}
-
 // PSync implements the NodeServiceImpl interface.
 func (s *NodeServiceImpl) PSync(ctx context.Context, req *node.PSyncRequest) (resp *node.PSyncResponse, err error) {
 	// TODO: Your code here...
@@ -42,4 +36,15 @@ func (s *NodeServiceImpl) Info(ctx context.Context) (resp *node.InfoResponse, er
 		MasterReplicationOffset: int64(bitcaskNode.GetConfig().MasterReplicationOffset),
 		CurReplicationOffset:    int64(bitcaskNode.GetConfig().CurReplicationOffset),
 	}, nil
+}
+
+// SendSlaveof implements the NodeServiceImpl interface.
+func (s *NodeServiceImpl) SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest) (resp *node.SendSlaveofResponse, err error) {
+	return bitcaskNode.SendSlaveOfReq(req)
+}
+
+// RegisterSlave implements the NodeServiceImpl interface.
+func (s *NodeServiceImpl) RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest) (resp *node.RegisterSlaveResponse, err error) {
+	// TODO: Your code here...
+	return bitcaskNode.HandleSlaveOfReq(req)
 }

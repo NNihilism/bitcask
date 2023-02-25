@@ -11,7 +11,8 @@ import (
 
 // Client is designed to provide IDL-compatible methods with call-option parameter for kitex framework.
 type Client interface {
-	SlaveOf(ctx context.Context, req *node.SlaveOfRequest, callOptions ...callopt.Option) (r *node.SlaveOfRespone, err error)
+	SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest, callOptions ...callopt.Option) (r *node.SendSlaveofResponse, err error)
+	RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest, callOptions ...callopt.Option) (r *node.RegisterSlaveResponse, err error)
 	PSync(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error)
 	OpLogEntry(ctx context.Context, req *node.LogEntryRequest, callOptions ...callopt.Option) (r *node.LogEntryRequest, err error)
 	Ping(ctx context.Context, callOptions ...callopt.Option) (r *node.PingResponse, err error)
@@ -47,9 +48,14 @@ type kNodeServiceClient struct {
 	*kClient
 }
 
-func (p *kNodeServiceClient) SlaveOf(ctx context.Context, req *node.SlaveOfRequest, callOptions ...callopt.Option) (r *node.SlaveOfRespone, err error) {
+func (p *kNodeServiceClient) SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest, callOptions ...callopt.Option) (r *node.SendSlaveofResponse, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.SlaveOf(ctx, req)
+	return p.kClient.SendSlaveof(ctx, req)
+}
+
+func (p *kNodeServiceClient) RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest, callOptions ...callopt.Option) (r *node.RegisterSlaveResponse, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.RegisterSlave(ctx, req)
 }
 
 func (p *kNodeServiceClient) PSync(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error) {

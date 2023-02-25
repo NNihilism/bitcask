@@ -19,11 +19,12 @@ func NewServiceInfo() *kitex.ServiceInfo {
 	serviceName := "NodeService"
 	handlerType := (*node.NodeService)(nil)
 	methods := map[string]kitex.MethodInfo{
-		"SlaveOf":    kitex.NewMethodInfo(slaveOfHandler, newNodeServiceSlaveOfArgs, newNodeServiceSlaveOfResult, false),
-		"PSync":      kitex.NewMethodInfo(pSyncHandler, newNodeServicePSyncArgs, newNodeServicePSyncResult, false),
-		"OpLogEntry": kitex.NewMethodInfo(opLogEntryHandler, newNodeServiceOpLogEntryArgs, newNodeServiceOpLogEntryResult, false),
-		"Ping":       kitex.NewMethodInfo(pingHandler, newNodeServicePingArgs, newNodeServicePingResult, false),
-		"Info":       kitex.NewMethodInfo(infoHandler, newNodeServiceInfoArgs, newNodeServiceInfoResult, false),
+		"SendSlaveof":   kitex.NewMethodInfo(sendSlaveofHandler, newNodeServiceSendSlaveofArgs, newNodeServiceSendSlaveofResult, false),
+		"RegisterSlave": kitex.NewMethodInfo(registerSlaveHandler, newNodeServiceRegisterSlaveArgs, newNodeServiceRegisterSlaveResult, false),
+		"PSync":         kitex.NewMethodInfo(pSyncHandler, newNodeServicePSyncArgs, newNodeServicePSyncResult, false),
+		"OpLogEntry":    kitex.NewMethodInfo(opLogEntryHandler, newNodeServiceOpLogEntryArgs, newNodeServiceOpLogEntryResult, false),
+		"Ping":          kitex.NewMethodInfo(pingHandler, newNodeServicePingArgs, newNodeServicePingResult, false),
+		"Info":          kitex.NewMethodInfo(infoHandler, newNodeServiceInfoArgs, newNodeServiceInfoResult, false),
 	}
 	extra := map[string]interface{}{
 		"PackageName": "node",
@@ -39,22 +40,40 @@ func NewServiceInfo() *kitex.ServiceInfo {
 	return svcInfo
 }
 
-func slaveOfHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
-	realArg := arg.(*node.NodeServiceSlaveOfArgs)
-	realResult := result.(*node.NodeServiceSlaveOfResult)
-	success, err := handler.(node.NodeService).SlaveOf(ctx, realArg.Req)
+func sendSlaveofHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*node.NodeServiceSendSlaveofArgs)
+	realResult := result.(*node.NodeServiceSendSlaveofResult)
+	success, err := handler.(node.NodeService).SendSlaveof(ctx, realArg.Req)
 	if err != nil {
 		return err
 	}
 	realResult.Success = success
 	return nil
 }
-func newNodeServiceSlaveOfArgs() interface{} {
-	return node.NewNodeServiceSlaveOfArgs()
+func newNodeServiceSendSlaveofArgs() interface{} {
+	return node.NewNodeServiceSendSlaveofArgs()
 }
 
-func newNodeServiceSlaveOfResult() interface{} {
-	return node.NewNodeServiceSlaveOfResult()
+func newNodeServiceSendSlaveofResult() interface{} {
+	return node.NewNodeServiceSendSlaveofResult()
+}
+
+func registerSlaveHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*node.NodeServiceRegisterSlaveArgs)
+	realResult := result.(*node.NodeServiceRegisterSlaveResult)
+	success, err := handler.(node.NodeService).RegisterSlave(ctx, realArg.Req)
+	if err != nil {
+		return err
+	}
+	realResult.Success = success
+	return nil
+}
+func newNodeServiceRegisterSlaveArgs() interface{} {
+	return node.NewNodeServiceRegisterSlaveArgs()
+}
+
+func newNodeServiceRegisterSlaveResult() interface{} {
+	return node.NewNodeServiceRegisterSlaveResult()
 }
 
 func pSyncHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
@@ -139,11 +158,21 @@ func newServiceClient(c client.Client) *kClient {
 	}
 }
 
-func (p *kClient) SlaveOf(ctx context.Context, req *node.SlaveOfRequest) (r *node.SlaveOfRespone, err error) {
-	var _args node.NodeServiceSlaveOfArgs
+func (p *kClient) SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest) (r *node.SendSlaveofResponse, err error) {
+	var _args node.NodeServiceSendSlaveofArgs
 	_args.Req = req
-	var _result node.NodeServiceSlaveOfResult
-	if err = p.c.Call(ctx, "SlaveOf", &_args, &_result); err != nil {
+	var _result node.NodeServiceSendSlaveofResult
+	if err = p.c.Call(ctx, "SendSlaveof", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest) (r *node.RegisterSlaveResponse, err error) {
+	var _args node.NodeServiceRegisterSlaveArgs
+	_args.Req = req
+	var _result node.NodeServiceRegisterSlaveResult
+	if err = p.c.Call(ctx, "RegisterSlave", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

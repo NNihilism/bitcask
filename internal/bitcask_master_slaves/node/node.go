@@ -3,7 +3,7 @@ package main
 
 import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/config"
-	"bitcaskDB/internal/bitcask_master_slaves/node/node"
+	nodeCore "bitcaskDB/internal/bitcask_master_slaves/node/node_core"
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/consts"
 	"bitcaskDB/internal/log"
 	"os"
@@ -14,13 +14,14 @@ func init() {
 		Role: config.Master,
 		Addr: consts.NodeAddr,
 		Path: config.BaseDBPath + string(os.PathListSeparator) + consts.NodeAddr,
+		ID:   consts.NodeAddr,
 	}
 
 	var err error
-	bitcaskNode, err = node.NewBitcaskNode(nodeConfig)
+	bitcaskNode, err = nodeCore.NewBitcaskNode(nodeConfig)
 	if err != nil {
 		log.Errorf("create bitcasknode err : %v", err)
 	}
 }
 
-var bitcaskNode *node.BitcaskNode
+var bitcaskNode *nodeCore.BitcaskNode
