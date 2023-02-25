@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bitcaskDB/internal/bitcask_master_slaves/node/config"
 	node "bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"
 	"context"
 )
@@ -36,9 +37,9 @@ func (s *NodeServiceImpl) Ping(ctx context.Context) (resp *node.PingResponse, er
 func (s *NodeServiceImpl) Info(ctx context.Context) (resp *node.InfoResponse, err error) {
 	// TODO: Your code here...
 	return &node.InfoResponse{
-		Role:                    "Master",
-		ConnectedSlaves:         0,
-		MasterReplicationOffset: 0,
-		CurReplicationOffset:    0,
+		Role:                    config.RoleNameMap[bitcaskNode.GetConfig().Role],
+		ConnectedSlaves:         int64(bitcaskNode.GetConfig().ConnectedSlaves),
+		MasterReplicationOffset: int64(bitcaskNode.GetConfig().MasterReplicationOffset),
+		CurReplicationOffset:    int64(bitcaskNode.GetConfig().CurReplicationOffset),
 	}, nil
 }
