@@ -6,14 +6,15 @@ import (
 	nodeCore "bitcaskDB/internal/bitcask_master_slaves/node/node_core"
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/consts"
 	"bitcaskDB/internal/log"
-	"os"
+	"strings"
 )
 
 func init() {
+	parts := strings.Split(consts.NodeAddr, ":") // []string{"ip", "port"}
 	nodeConfig := &config.NodeConfig{
 		Role: config.Master,
 		Addr: consts.NodeAddr,
-		Path: config.BaseDBPath + string(os.PathListSeparator) + consts.NodeAddr,
+		Path: config.BaseDBPath + parts[1],
 		ID:   consts.NodeAddr,
 	}
 
