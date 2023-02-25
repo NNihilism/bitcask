@@ -30,7 +30,7 @@ func (s *NodeServiceImpl) OpLogEntry(ctx context.Context, req *node.LogEntryRequ
 // Ping implements the NodeServiceImpl interface.
 func (s *NodeServiceImpl) Ping(ctx context.Context) (resp *node.PingResponse, err error) {
 	// TODO: Your code here...
-	return
+	return &node.PingResponse{Status: true}, nil
 }
 
 // Info implements the NodeServiceImpl interface.
