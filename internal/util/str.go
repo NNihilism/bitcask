@@ -29,3 +29,11 @@ func StrArrToByteArr(strArr []string) [][]byte {
 	}
 	return res
 }
+
+func BytesArrToStrArr(arrs [][]byte) []string {
+	res := make([]string, len(arrs))
+	for i := range arrs {
+		res[i] = string(arrs[i])
+	}
+	return res
+}

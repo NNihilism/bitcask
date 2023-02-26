@@ -1,7 +1,9 @@
 package errno
 
 import (
+	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"
 	"bytes"
+	"errors"
 	"fmt"
 )
 
@@ -13,11 +15,43 @@ import (
 type ErrCode int8
 
 const (
-	ErrWrongArgsNumber = iota
-	ErrKeyNotFound
-	ErrUnknownCMD
-	ErrParseResp
+	ErrCodeSuccess = iota
+	ErrCodeWrongArgsNumber
+	ErrCodeKeyNotFound
+	ErrCodeUnknownCMD
+	ErrCodeParseResp
+	ErrCodeSyntax
+	ErrCodeWriteOnSlave
 )
+
+var (
+	Success    = NewErrNo(int64(node.ErrCode_SuccessCode), "Success")
+	ServiceErr = NewErrNo(int64(node.ErrCode_ServiceErrCode), "Service is unable to start successfully")
+	ParamErr   = NewErrNo(int64(node.ErrCode_ParamErrCode), "Wrong Parameter has been given")
+	// UserAlreadyExistErr    = NewErrNo(int64(node.ErrCode_UserAlreadyExistErrCode), "User already exists")
+	// AuthorizationFailedErr = NewErrNo(int64(node.ErrCode_AuthorizationFailedErrCode), "Authorization failed")
+	ErrSyntax         = errors.New("ERR syntax error ")
+	ErrValueIsInvalid = errors.New("ERR value is not an integer or out of range")
+
+	ErrFloatIsInvalid    = errors.New("ERR value is not a valid float")
+	ErrDBIndexOutOfRange = errors.New("ERR DB index is out of range")
+)
+
+type ErrNo struct {
+	ErrCode int64
+	ErrMsg  string
+}
+
+func (e ErrNo) Error() string {
+	return fmt.Sprintf("err_code=%d, err_msg=%s", e.ErrCode, e.ErrMsg)
+}
+
+func NewErrNo(code int64, msg string) ErrNo {
+	return ErrNo{
+		ErrCode: code,
+		ErrMsg:  msg,
+	}
+}
 
 type ErrInfo struct {
 	Cmd  string
@@ -27,16 +61,28 @@ type ErrInfo struct {
 
 func NewErr(code ErrCode, info *ErrInfo) error {
 	switch code {
-	case ErrWrongArgsNumber:
+	case ErrCodeWrongArgsNumber:
 		return newWrongNumOfArgsError(info.Cmd)
-	case ErrUnknownCMD:
+	case ErrCodeUnknownCMD:
 		return newErrUnknownCMD(info.Cmd, info.Args)
-	case ErrParseResp:
+	case ErrCodeParseResp:
 		return newErrParseResp(info.Obj)
+	case ErrCodeSyntax:
+		return newSyntaxErr()
+	case ErrCodeWriteOnSlave:
+		return newWriteOnSlaveErr()
 	// case ErrKeyNotFound:
 	default:
 		return newWrongNumOfArgsError(info.Cmd)
 	}
+}
+
+func newSyntaxErr() error {
+	return errors.New("ERR syntax error")
+}
+
+func newWriteOnSlaveErr() error {
+	return errors.New("ERR write on slave node")
 }
 
 func newWrongNumOfArgsError(cmd string) error {
@@ -53,38 +99,3 @@ func newErrUnknownCMD(cmd string, args [][]byte) error {
 func newErrParseResp(obj interface{}) error {
 	return fmt.Errorf("ERR parse resp [%v] err", obj)
 }
-
-// func (e ErrNo) Error() string {
-// 	return fmt.Sprintf("err_code=%d, err_msg=%s", e.ErrCode, e.ErrMsg)
-// }
-
-// func NewErrNo(code int64, msg string) ErrNo {
-// 	return ErrNo{
-// 		ErrCode: code,
-// 		ErrMsg:  msg,
-// 	}
-// }
-
-// func (e ErrNo) WithMessage(msg string) ErrNo {
-// 	e.ErrMsg = msg
-// 	return e
-// }
-
-// var (
-// 	Success                = NewErrNo(int64(user.ErrCode_SuccessCode), "Success")
-// 	ServiceErr             = NewErrNo(int64(user.ErrCode_ServiceErrCode), "Service is unable to start successfully")
-// 	ParamErr               = NewErrNo(int64(user.ErrCode_ParamErrCode), "Wrong Parameter has been given")
-// 	UserAlreadyExistErr    = NewErrNo(int64(user.ErrCode_UserAlreadyExistErrCode), "User already exists")
-// 	AuthorizationFailedErr = NewErrNo(int64(user.ErrCode_AuthorizationFailedErrCode), "Authorization failed")
-// )
-
-// ConvertErr convert error to Errno
-// func ConvertErr(err error) ErrNo {
-// 	Err := ErrNo{}
-// 	if errors.As(err, &Err) {
-// 		return Err
-// 	}
-// 	s := ServiceErr
-// 	s.ErrMsg = err.Error()
-// 	return s
-// }

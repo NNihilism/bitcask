@@ -63,17 +63,17 @@ func (cl *Client) WriteResult(result []byte) {
 	fmt.Println(string(result))
 }
 
-// 解析用户输入，获取命令/参数
-func (cl *Client) parse(cmd []byte) (cmdHandler, [][]byte, error) {
+// 解析用户输入，获取命令 参数 对应的handler
+func (cl *Client) parse(cmd []byte) (cmdHandler, []byte, [][]byte, error) {
 	parts := bytes.Split(bytes.TrimSpace(cmd), []byte(" "))
 	command, args := bytes.ToLower(parts[0]), parts[1:]
 	cmdFunc, ok := supportedCommands[string(command)]
 
 	if !ok {
-		return nil, nil, errno.NewErr(errno.ErrUnknownCMD, &errno.ErrInfo{Cmd: string(command)})
+		return nil, nil, nil, errno.NewErr(errno.ErrCodeUnknownCMD, &errno.ErrInfo{Cmd: string(command)})
 	}
 
-	return cmdFunc, args, nil
+	return cmdFunc, command, args, nil
 }
 
 func (cl *Client) Start() {
@@ -85,14 +85,14 @@ func (cl *Client) Start() {
 		for {
 			cmd := cl.read()
 
-			cmdFunc, args, err := cl.parse(cmd)
+			cmdFunc, command, args, err := cl.parse(cmd)
 
 			if err != nil {
 				cl.WriteResult([]byte("(error) " + err.Error()))
 				continue
 			}
 
-			result, err := cmdFunc(cl, args)
+			result, err := cmdFunc(cl, command, args)
 			if err != nil {
 				cl.WriteResult([]byte("(error) " + err.Error()))
 				continue

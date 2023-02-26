@@ -18,14 +18,6 @@ type BitcaskNode struct {
 }
 
 func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
-	// 初始化配置
-	// nodeConfig := &config.NodeConfig{
-	// 	Role: config.Master,
-	// 	Addr: consts.NodeAddr,
-	// 	Path: config.BaseDBPath + string(os.PathListSeparator) + consts.NodeAddr,
-	// }
-
-	// 打开数据库
 	opts := options.DefaultOptions(nodeConfig.Path)
 	db, err := bitcask.Open(opts)
 	if err != nil {

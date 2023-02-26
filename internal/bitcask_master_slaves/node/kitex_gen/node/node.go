@@ -2034,8 +2034,9 @@ func (p *PSyncResponse) Field1DeepEqual(src int8) bool {
 }
 
 type LogEntryRequest struct {
-	EntryId int64  `thrift:"entry_id,1" frugal:"1,default,i64" json:"entry_id"`
-	Cmd     string `thrift:"cmd,2" frugal:"2,default,string" json:"cmd"`
+	EntryId int64    `thrift:"entry_id,1" frugal:"1,default,i64" json:"entry_id"`
+	Cmd     string   `thrift:"cmd,2" frugal:"2,default,string" json:"cmd"`
+	Args_   []string `thrift:"args,3" frugal:"3,default,list<string>" json:"args"`
 }
 
 func NewLogEntryRequest() *LogEntryRequest {
@@ -2053,16 +2054,24 @@ func (p *LogEntryRequest) GetEntryId() (v int64) {
 func (p *LogEntryRequest) GetCmd() (v string) {
 	return p.Cmd
 }
+
+func (p *LogEntryRequest) GetArgs_() (v []string) {
+	return p.Args_
+}
 func (p *LogEntryRequest) SetEntryId(val int64) {
 	p.EntryId = val
 }
 func (p *LogEntryRequest) SetCmd(val string) {
 	p.Cmd = val
 }
+func (p *LogEntryRequest) SetArgs_(val []string) {
+	p.Args_ = val
+}
 
 var fieldIDToName_LogEntryRequest = map[int16]string{
 	1: "entry_id",
 	2: "cmd",
+	3: "args",
 }
 
 func (p *LogEntryRequest) Read(iprot thrift.TProtocol) (err error) {
@@ -2097,6 +2106,16 @@ func (p *LogEntryRequest) Read(iprot thrift.TProtocol) (err error) {
 		case 2:
 			if fieldTypeId == thrift.STRING {
 				if err = p.ReadField2(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 3:
+			if fieldTypeId == thrift.LIST {
+				if err = p.ReadField3(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -2152,6 +2171,28 @@ func (p *LogEntryRequest) ReadField2(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *LogEntryRequest) ReadField3(iprot thrift.TProtocol) error {
+	_, size, err := iprot.ReadListBegin()
+	if err != nil {
+		return err
+	}
+	p.Args_ = make([]string, 0, size)
+	for i := 0; i < size; i++ {
+		var _elem string
+		if v, err := iprot.ReadString(); err != nil {
+			return err
+		} else {
+			_elem = v
+		}
+
+		p.Args_ = append(p.Args_, _elem)
+	}
+	if err := iprot.ReadListEnd(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *LogEntryRequest) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin("LogEntryRequest"); err != nil {
@@ -2164,6 +2205,10 @@ func (p *LogEntryRequest) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField2(oprot); err != nil {
 			fieldId = 2
+			goto WriteFieldError
+		}
+		if err = p.writeField3(oprot); err != nil {
+			fieldId = 3
 			goto WriteFieldError
 		}
 
@@ -2219,6 +2264,31 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 2 end error: ", p), err)
 }
 
+func (p *LogEntryRequest) writeField3(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("args", thrift.LIST, 3); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteListBegin(thrift.STRING, len(p.Args_)); err != nil {
+		return err
+	}
+	for _, v := range p.Args_ {
+		if err := oprot.WriteString(v); err != nil {
+			return err
+		}
+	}
+	if err := oprot.WriteListEnd(); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 3 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
+}
+
 func (p *LogEntryRequest) String() string {
 	if p == nil {
 		return "<nil>"
@@ -2238,6 +2308,9 @@ func (p *LogEntryRequest) DeepEqual(ano *LogEntryRequest) bool {
 	if !p.Field2DeepEqual(ano.Cmd) {
 		return false
 	}
+	if !p.Field3DeepEqual(ano.Args_) {
+		return false
+	}
 	return true
 }
 
@@ -2255,10 +2328,24 @@ func (p *LogEntryRequest) Field2DeepEqual(src string) bool {
 	}
 	return true
 }
+func (p *LogEntryRequest) Field3DeepEqual(src []string) bool {
+
+	if len(p.Args_) != len(src) {
+		return false
+	}
+	for i, v := range p.Args_ {
+		_src := src[i]
+		if strings.Compare(v, _src) != 0 {
+			return false
+		}
+	}
+	return true
+}
 
 type LogEntryResponse struct {
-	Code  bool        `thrift:"code,1" frugal:"1,default,bool" json:"code"`
-	Entry []*LogEntry `thrift:"entry,2" frugal:"2,default,list<LogEntry>" json:"entry"`
+	BaseResp *BaseResp   `thrift:"base_resp,1" frugal:"1,default,BaseResp" json:"base_resp"`
+	Entries  []*LogEntry `thrift:"entries,2" frugal:"2,default,list<LogEntry>" json:"entries"`
+	Info     string      `thrift:"info,3" frugal:"3,default,string" json:"info"`
 }
 
 func NewLogEntryResponse() *LogEntryResponse {
@@ -2269,23 +2356,40 @@ func (p *LogEntryResponse) InitDefault() {
 	*p = LogEntryResponse{}
 }
 
-func (p *LogEntryResponse) GetCode() (v bool) {
-	return p.Code
+var LogEntryResponse_BaseResp_DEFAULT *BaseResp
+
+func (p *LogEntryResponse) GetBaseResp() (v *BaseResp) {
+	if !p.IsSetBaseResp() {
+		return LogEntryResponse_BaseResp_DEFAULT
+	}
+	return p.BaseResp
 }
 
-func (p *LogEntryResponse) GetEntry() (v []*LogEntry) {
-	return p.Entry
+func (p *LogEntryResponse) GetEntries() (v []*LogEntry) {
+	return p.Entries
 }
-func (p *LogEntryResponse) SetCode(val bool) {
-	p.Code = val
+
+func (p *LogEntryResponse) GetInfo() (v string) {
+	return p.Info
 }
-func (p *LogEntryResponse) SetEntry(val []*LogEntry) {
-	p.Entry = val
+func (p *LogEntryResponse) SetBaseResp(val *BaseResp) {
+	p.BaseResp = val
+}
+func (p *LogEntryResponse) SetEntries(val []*LogEntry) {
+	p.Entries = val
+}
+func (p *LogEntryResponse) SetInfo(val string) {
+	p.Info = val
 }
 
 var fieldIDToName_LogEntryResponse = map[int16]string{
-	1: "code",
-	2: "entry",
+	1: "base_resp",
+	2: "entries",
+	3: "info",
+}
+
+func (p *LogEntryResponse) IsSetBaseResp() bool {
+	return p.BaseResp != nil
 }
 
 func (p *LogEntryResponse) Read(iprot thrift.TProtocol) (err error) {
@@ -2308,7 +2412,7 @@ func (p *LogEntryResponse) Read(iprot thrift.TProtocol) (err error) {
 
 		switch fieldId {
 		case 1:
-			if fieldTypeId == thrift.BOOL {
+			if fieldTypeId == thrift.STRUCT {
 				if err = p.ReadField1(iprot); err != nil {
 					goto ReadFieldError
 				}
@@ -2320,6 +2424,16 @@ func (p *LogEntryResponse) Read(iprot thrift.TProtocol) (err error) {
 		case 2:
 			if fieldTypeId == thrift.LIST {
 				if err = p.ReadField2(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 3:
+			if fieldTypeId == thrift.STRING {
+				if err = p.ReadField3(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -2358,10 +2472,9 @@ ReadStructEndError:
 }
 
 func (p *LogEntryResponse) ReadField1(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadBool(); err != nil {
+	p.BaseResp = NewBaseResp()
+	if err := p.BaseResp.Read(iprot); err != nil {
 		return err
-	} else {
-		p.Code = v
 	}
 	return nil
 }
@@ -2371,17 +2484,26 @@ func (p *LogEntryResponse) ReadField2(iprot thrift.TProtocol) error {
 	if err != nil {
 		return err
 	}
-	p.Entry = make([]*LogEntry, 0, size)
+	p.Entries = make([]*LogEntry, 0, size)
 	for i := 0; i < size; i++ {
 		_elem := NewLogEntry()
 		if err := _elem.Read(iprot); err != nil {
 			return err
 		}
 
-		p.Entry = append(p.Entry, _elem)
+		p.Entries = append(p.Entries, _elem)
 	}
 	if err := iprot.ReadListEnd(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (p *LogEntryResponse) ReadField3(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadString(); err != nil {
+		return err
+	} else {
+		p.Info = v
 	}
 	return nil
 }
@@ -2398,6 +2520,10 @@ func (p *LogEntryResponse) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField2(oprot); err != nil {
 			fieldId = 2
+			goto WriteFieldError
+		}
+		if err = p.writeField3(oprot); err != nil {
+			fieldId = 3
 			goto WriteFieldError
 		}
 
@@ -2420,10 +2546,10 @@ WriteStructEndError:
 }
 
 func (p *LogEntryResponse) writeField1(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("code", thrift.BOOL, 1); err != nil {
+	if err = oprot.WriteFieldBegin("base_resp", thrift.STRUCT, 1); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteBool(p.Code); err != nil {
+	if err := p.BaseResp.Write(oprot); err != nil {
 		return err
 	}
 	if err = oprot.WriteFieldEnd(); err != nil {
@@ -2437,13 +2563,13 @@ WriteFieldEndError:
 }
 
 func (p *LogEntryResponse) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("entry", thrift.LIST, 2); err != nil {
+	if err = oprot.WriteFieldBegin("entries", thrift.LIST, 2); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Entry)); err != nil {
+	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Entries)); err != nil {
 		return err
 	}
-	for _, v := range p.Entry {
+	for _, v := range p.Entries {
 		if err := v.Write(oprot); err != nil {
 			return err
 		}
@@ -2461,6 +2587,23 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 2 end error: ", p), err)
 }
 
+func (p *LogEntryResponse) writeField3(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("info", thrift.STRING, 3); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteString(p.Info); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 3 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
+}
+
 func (p *LogEntryResponse) String() string {
 	if p == nil {
 		return "<nil>"
@@ -2474,32 +2617,42 @@ func (p *LogEntryResponse) DeepEqual(ano *LogEntryResponse) bool {
 	} else if p == nil || ano == nil {
 		return false
 	}
-	if !p.Field1DeepEqual(ano.Code) {
+	if !p.Field1DeepEqual(ano.BaseResp) {
 		return false
 	}
-	if !p.Field2DeepEqual(ano.Entry) {
+	if !p.Field2DeepEqual(ano.Entries) {
+		return false
+	}
+	if !p.Field3DeepEqual(ano.Info) {
 		return false
 	}
 	return true
 }
 
-func (p *LogEntryResponse) Field1DeepEqual(src bool) bool {
+func (p *LogEntryResponse) Field1DeepEqual(src *BaseResp) bool {
 
-	if p.Code != src {
+	if !p.BaseResp.DeepEqual(src) {
 		return false
 	}
 	return true
 }
 func (p *LogEntryResponse) Field2DeepEqual(src []*LogEntry) bool {
 
-	if len(p.Entry) != len(src) {
+	if len(p.Entries) != len(src) {
 		return false
 	}
-	for i, v := range p.Entry {
+	for i, v := range p.Entries {
 		_src := src[i]
 		if !v.DeepEqual(_src) {
 			return false
 		}
+	}
+	return true
+}
+func (p *LogEntryResponse) Field3DeepEqual(src string) bool {
+
+	if strings.Compare(p.Info, src) != 0 {
+		return false
 	}
 	return true
 }

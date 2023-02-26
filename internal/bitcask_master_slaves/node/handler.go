@@ -46,5 +46,5 @@ func (s *NodeServiceImpl) RegisterSlave(ctx context.Context, req *node.RegisterS
 // OpLogEntry implements the NodeServiceImpl interface.
 func (s *NodeServiceImpl) OpLogEntry(ctx context.Context, req *node.LogEntryRequest) (resp *node.LogEntryResponse, err error) {
 	// TODO: Your code here...
-	return
+	return bitcaskNode.HandleOpLogEntryRequest(req)
 }

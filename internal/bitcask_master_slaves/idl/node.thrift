@@ -77,11 +77,13 @@ struct LogEntryRequest {
     # 2: OperationCode opCode
     # 3: LogEntry entry
     2: string cmd  
+    3: list<string> args
 }
 
 struct LogEntryResponse {
-    1: bool code
-    2: list<LogEntry> entry
+    1: BaseResp base_resp
+    2: list<LogEntry> entries
+    3: string info // 若状态码正确且entries为空，则输出info信息
 }
 
 # 健康检测

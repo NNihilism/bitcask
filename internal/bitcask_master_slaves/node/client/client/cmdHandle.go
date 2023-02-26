@@ -6,74 +6,74 @@ import (
 	"context"
 )
 
-type cmdHandler func(client *Client, args [][]byte) (interface{}, error)
+type cmdHandler func(client *Client, cmd []byte, args [][]byte) (interface{}, error)
 
 var supportedCommands = map[string]cmdHandler{
 
 	// string commands
-	// "set":      set,
-	// "get":      get,
-	// "mget":     mGet,
-	// "getrange": getRange,
-	// "getdel":   getDel,
-	// "setex":    setEX,
-	// "setnx":    setNX,
-	// "mset":     mSet,
-	// "msetnx":   mSetNX,
-	// "append":   appendStr,
-	// "decr":     decr,
-	// "decrby":   decrBy,
-	// "incr":     incr,
-	// "incrby":   incrBy,
-	// "strlen":   strLen,
+	"set":      opLogEntry,
+	"get":      opLogEntry,
+	"mget":     opLogEntry,
+	"getrange": opLogEntry,
+	"getdel":   opLogEntry,
+	"setex":    opLogEntry,
+	"setnx":    opLogEntry,
+	"mset":     opLogEntry,
+	"msetnx":   opLogEntry,
+	"append":   opLogEntry,
+	"decr":     opLogEntry,
+	"decrby":   opLogEntry,
+	"incr":     opLogEntry,
+	"incrby":   opLogEntry,
+	"strlen":   opLogEntry,
 
-	// // list
-	// "lpush":  lPush,
-	// "lpushx": lPushX,
-	// "rpush":  rPush,
-	// "rpushx": rPushX,
-	// "lpop":   lPop,
-	// "rpop":   rPop,
-	// "lmove":  lMove,
-	// "llen":   lLen,
-	// "lindex": lIndex,
-	// "lset":   lSet,
-	// "lrange": lRange,
+	// list
+	"lpush":  opLogEntry,
+	"lpushx": opLogEntry,
+	"rpush":  opLogEntry,
+	"rpushx": opLogEntry,
+	"lpop":   opLogEntry,
+	"rpop":   opLogEntry,
+	"lmove":  opLogEntry,
+	"llen":   opLogEntry,
+	"lindex": opLogEntry,
+	"lset":   opLogEntry,
+	"lrange": opLogEntry,
 
-	// // hash commands
-	// "hset":    hSet,
-	// "hsetnx":  hSetNX,
-	// "hget":    hGet,
-	// "hmget":   hmGet,
-	// "hdel":    hDel,
-	// "hexists": hExists,
-	// "hlen":    hLen,
-	// "hkeys":   hKeys,
-	// "hvals":   hVals,
-	// "hgetall": hGetAll,
-	// "hstrlen": hStrLen,
-	// "hscan":   hScan,
-	// "hincrby": hIncrBy,
+	// hash commands
+	"hset":    opLogEntry,
+	"hsetnx":  opLogEntry,
+	"hget":    opLogEntry,
+	"hmget":   opLogEntry,
+	"hdel":    opLogEntry,
+	"hexists": opLogEntry,
+	"hlen":    opLogEntry,
+	"hkeys":   opLogEntry,
+	"hvals":   opLogEntry,
+	"hgetall": opLogEntry,
+	"hstrlen": opLogEntry,
+	"hscan":   opLogEntry,
+	"hincrby": opLogEntry,
 
-	// // set commands
-	// "sadd":      sAdd,
-	// "spop":      sPop,
-	// "srem":      sRem,
-	// "sismember": sIsMember,
-	// "smembers":  sMembers,
-	// "scard":     sCard,
-	// "sdiff":     sDiff,
-	// "sunion":    sUnion,
+	// set commands
+	"sadd":      opLogEntry,
+	"spop":      opLogEntry,
+	"srem":      opLogEntry,
+	"sismember": opLogEntry,
+	"smembers":  opLogEntry,
+	"scard":     opLogEntry,
+	"sdiff":     opLogEntry,
+	"sunion":    opLogEntry,
 
-	// // zset commands
-	// "zadd":      zAdd,
-	// "zscore":    zScore,
-	// "zrem":      zRem,
-	// "zcard":     zCard,
-	// "zrange":    zRange,
-	// "zrevrange": zRevRange,
-	// "zrank":     zRank,
-	// "zrevrank":  zRevRank,
+	// zset commands
+	"zadd":      opLogEntry,
+	"zscore":    opLogEntry,
+	"zrem":      opLogEntry,
+	"zcard":     opLogEntry,
+	"zrange":    opLogEntry,
+	"zrevrange": opLogEntry,
+	"zrank":     opLogEntry,
+	"zrevrank":  opLogEntry,
 
 	// // generic commands
 	// "type": keyType,
@@ -81,7 +81,7 @@ var supportedCommands = map[string]cmdHandler{
 
 	// // connection management commands
 	// "select": selectDB,
-	// "ping":   ping,
+	"ping":    opLogEntry,
 	"quit":    quit,
 	"slaveof": slaveof,
 
@@ -89,9 +89,9 @@ var supportedCommands = map[string]cmdHandler{
 	"info": info,
 }
 
-func info(client *Client, args [][]byte) (interface{}, error) {
+func info(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
 	if len(args) != 0 {
-		return nil, errno.NewErr(errno.ErrWrongArgsNumber, &errno.ErrInfo{Cmd: "info"})
+		return nil, errno.NewErr(errno.ErrCodeWrongArgsNumber, &errno.ErrInfo{Cmd: "info"})
 	}
 	resp, err := client.rpcClient.Info(context.Background())
 
@@ -105,7 +105,7 @@ func info(client *Client, args [][]byte) (interface{}, error) {
 	}
 }
 
-func slaveof(client *Client, args [][]byte) (interface{}, error) {
+func slaveof(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
 	resp, err := client.rpcClient.SendSlaveof(context.Background(), &node.SendSlaveofRequest{
 		Address: string(args[0]),
 	})
@@ -119,7 +119,7 @@ func slaveof(client *Client, args [][]byte) (interface{}, error) {
 	}
 }
 
-func quit(client *Client, args [][]byte) (interface{}, error) {
+func quit(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
 	client.Done <- struct{}{}
 	return "quit....", nil
 }
