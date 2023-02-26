@@ -44,6 +44,9 @@ func BuildOpLogEntryResp(vi interface{}) (interface{}, error) {
 	case reflect.Int64:
 		valStr := strconv.Itoa(int(vi.(int64)))
 		info = fmt.Sprintf("(integer) %s", valStr)
+	case reflect.Float64:
+		valStr := fmt.Sprintf("%f", vi.(float64))
+		info = fmt.Sprintf("(float) %s", valStr)
 	case reflect.Invalid:
 		info = "(nil)"
 	case reflect.Bool:
