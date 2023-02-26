@@ -14,7 +14,7 @@ type Client interface {
 	SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest, callOptions ...callopt.Option) (r *node.SendSlaveofResponse, err error)
 	RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest, callOptions ...callopt.Option) (r *node.RegisterSlaveResponse, err error)
 	PSync(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error)
-	OpLogEntry(ctx context.Context, req *node.LogEntryRequest, callOptions ...callopt.Option) (r *node.LogEntryRequest, err error)
+	OpLogEntry(ctx context.Context, req *node.LogEntryRequest, callOptions ...callopt.Option) (r *node.LogEntryResponse, err error)
 	Ping(ctx context.Context, callOptions ...callopt.Option) (r *node.PingResponse, err error)
 	Info(ctx context.Context, callOptions ...callopt.Option) (r *node.InfoResponse, err error)
 }
@@ -63,7 +63,7 @@ func (p *kNodeServiceClient) PSync(ctx context.Context, req *node.PSyncRequest, 
 	return p.kClient.PSync(ctx, req)
 }
 
-func (p *kNodeServiceClient) OpLogEntry(ctx context.Context, req *node.LogEntryRequest, callOptions ...callopt.Option) (r *node.LogEntryRequest, err error) {
+func (p *kNodeServiceClient) OpLogEntry(ctx context.Context, req *node.LogEntryRequest, callOptions ...callopt.Option) (r *node.LogEntryResponse, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.OpLogEntry(ctx, req)
 }

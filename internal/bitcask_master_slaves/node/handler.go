@@ -15,12 +15,6 @@ func (s *NodeServiceImpl) PSync(ctx context.Context, req *node.PSyncRequest) (re
 	return
 }
 
-// OpLogEntry implements the NodeServiceImpl interface.
-func (s *NodeServiceImpl) OpLogEntry(ctx context.Context, req *node.LogEntryRequest) (resp *node.LogEntryRequest, err error) {
-	// TODO: Your code here...
-	return
-}
-
 // Ping implements the NodeServiceImpl interface.
 func (s *NodeServiceImpl) Ping(ctx context.Context) (resp *node.PingResponse, err error) {
 	// TODO: Your code here...
@@ -47,4 +41,10 @@ func (s *NodeServiceImpl) SendSlaveof(ctx context.Context, req *node.SendSlaveof
 func (s *NodeServiceImpl) RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest) (resp *node.RegisterSlaveResponse, err error) {
 	// TODO: Your code here...
 	return bitcaskNode.HandleSlaveOfReq(req)
+}
+
+// OpLogEntry implements the NodeServiceImpl interface.
+func (s *NodeServiceImpl) OpLogEntry(ctx context.Context, req *node.LogEntryRequest) (resp *node.LogEntryResponse, err error) {
+	// TODO: Your code here...
+	return
 }

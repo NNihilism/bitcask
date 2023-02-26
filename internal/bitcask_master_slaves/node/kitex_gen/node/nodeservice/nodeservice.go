@@ -188,7 +188,7 @@ func (p *kClient) PSync(ctx context.Context, req *node.PSyncRequest) (r *node.PS
 	return _result.GetSuccess(), nil
 }
 
-func (p *kClient) OpLogEntry(ctx context.Context, req *node.LogEntryRequest) (r *node.LogEntryRequest, err error) {
+func (p *kClient) OpLogEntry(ctx context.Context, req *node.LogEntryRequest) (r *node.LogEntryResponse, err error) {
 	var _args node.NodeServiceOpLogEntryArgs
 	_args.Req = req
 	var _result node.NodeServiceOpLogEntryResult

@@ -74,13 +74,14 @@ struct PSyncResponse {
 # 数据操作，即数据的增删改查（被请求方将会被写入数据）
 struct LogEntryRequest {
     1: i64 entry_id // 客户端发起的请求不会有这个标识，主节点发送请求时会有这个标识，方便进度同步
-    2: OperationCode opCode
-    3: LogEntry entry
+    # 2: OperationCode opCode
+    # 3: LogEntry entry
+    2: string cmd  
 }
 
 struct LogEntryResponse {
     1: bool code
-    2: LogEntry entry
+    2: list<LogEntry> entry
 }
 
 # 健康检测
@@ -113,7 +114,7 @@ service NodeService {
 
     
     PSyncResponse PSync(1: PSyncRequest req)
-    LogEntryRequest OpLogEntry(1: LogEntryRequest req)
+    LogEntryResponse OpLogEntry(1: LogEntryRequest req)
     PingResponse Ping()
     InfoResponse Info()
 }

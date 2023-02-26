@@ -2034,9 +2034,8 @@ func (p *PSyncResponse) Field1DeepEqual(src int8) bool {
 }
 
 type LogEntryRequest struct {
-	EntryId int64         `thrift:"entry_id,1" frugal:"1,default,i64" json:"entry_id"`
-	OpCode  OperationCode `thrift:"opCode,2" frugal:"2,default,OperationCode" json:"opCode"`
-	Entry   *LogEntry     `thrift:"entry,3" frugal:"3,default,LogEntry" json:"entry"`
+	EntryId int64  `thrift:"entry_id,1" frugal:"1,default,i64" json:"entry_id"`
+	Cmd     string `thrift:"cmd,2" frugal:"2,default,string" json:"cmd"`
 }
 
 func NewLogEntryRequest() *LogEntryRequest {
@@ -2051,36 +2050,19 @@ func (p *LogEntryRequest) GetEntryId() (v int64) {
 	return p.EntryId
 }
 
-func (p *LogEntryRequest) GetOpCode() (v OperationCode) {
-	return p.OpCode
-}
-
-var LogEntryRequest_Entry_DEFAULT *LogEntry
-
-func (p *LogEntryRequest) GetEntry() (v *LogEntry) {
-	if !p.IsSetEntry() {
-		return LogEntryRequest_Entry_DEFAULT
-	}
-	return p.Entry
+func (p *LogEntryRequest) GetCmd() (v string) {
+	return p.Cmd
 }
 func (p *LogEntryRequest) SetEntryId(val int64) {
 	p.EntryId = val
 }
-func (p *LogEntryRequest) SetOpCode(val OperationCode) {
-	p.OpCode = val
-}
-func (p *LogEntryRequest) SetEntry(val *LogEntry) {
-	p.Entry = val
+func (p *LogEntryRequest) SetCmd(val string) {
+	p.Cmd = val
 }
 
 var fieldIDToName_LogEntryRequest = map[int16]string{
 	1: "entry_id",
-	2: "opCode",
-	3: "entry",
-}
-
-func (p *LogEntryRequest) IsSetEntry() bool {
-	return p.Entry != nil
+	2: "cmd",
 }
 
 func (p *LogEntryRequest) Read(iprot thrift.TProtocol) (err error) {
@@ -2113,18 +2095,8 @@ func (p *LogEntryRequest) Read(iprot thrift.TProtocol) (err error) {
 				}
 			}
 		case 2:
-			if fieldTypeId == thrift.I32 {
+			if fieldTypeId == thrift.STRING {
 				if err = p.ReadField2(iprot); err != nil {
-					goto ReadFieldError
-				}
-			} else {
-				if err = iprot.Skip(fieldTypeId); err != nil {
-					goto SkipFieldError
-				}
-			}
-		case 3:
-			if fieldTypeId == thrift.STRUCT {
-				if err = p.ReadField3(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -2172,18 +2144,10 @@ func (p *LogEntryRequest) ReadField1(iprot thrift.TProtocol) error {
 }
 
 func (p *LogEntryRequest) ReadField2(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadI32(); err != nil {
+	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
-		p.OpCode = OperationCode(v)
-	}
-	return nil
-}
-
-func (p *LogEntryRequest) ReadField3(iprot thrift.TProtocol) error {
-	p.Entry = NewLogEntry()
-	if err := p.Entry.Read(iprot); err != nil {
-		return err
+		p.Cmd = v
 	}
 	return nil
 }
@@ -2200,10 +2164,6 @@ func (p *LogEntryRequest) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField2(oprot); err != nil {
 			fieldId = 2
-			goto WriteFieldError
-		}
-		if err = p.writeField3(oprot); err != nil {
-			fieldId = 3
 			goto WriteFieldError
 		}
 
@@ -2243,10 +2203,10 @@ WriteFieldEndError:
 }
 
 func (p *LogEntryRequest) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("opCode", thrift.I32, 2); err != nil {
+	if err = oprot.WriteFieldBegin("cmd", thrift.STRING, 2); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteI32(int32(p.OpCode)); err != nil {
+	if err := oprot.WriteString(p.Cmd); err != nil {
 		return err
 	}
 	if err = oprot.WriteFieldEnd(); err != nil {
@@ -2257,23 +2217,6 @@ WriteFieldBeginError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 2 begin error: ", p), err)
 WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 2 end error: ", p), err)
-}
-
-func (p *LogEntryRequest) writeField3(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("entry", thrift.STRUCT, 3); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := p.Entry.Write(oprot); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
-	}
-	return nil
-WriteFieldBeginError:
-	return thrift.PrependError(fmt.Sprintf("%T write field 3 begin error: ", p), err)
-WriteFieldEndError:
-	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
 }
 
 func (p *LogEntryRequest) String() string {
@@ -2292,10 +2235,7 @@ func (p *LogEntryRequest) DeepEqual(ano *LogEntryRequest) bool {
 	if !p.Field1DeepEqual(ano.EntryId) {
 		return false
 	}
-	if !p.Field2DeepEqual(ano.OpCode) {
-		return false
-	}
-	if !p.Field3DeepEqual(ano.Entry) {
+	if !p.Field2DeepEqual(ano.Cmd) {
 		return false
 	}
 	return true
@@ -2308,24 +2248,17 @@ func (p *LogEntryRequest) Field1DeepEqual(src int64) bool {
 	}
 	return true
 }
-func (p *LogEntryRequest) Field2DeepEqual(src OperationCode) bool {
+func (p *LogEntryRequest) Field2DeepEqual(src string) bool {
 
-	if p.OpCode != src {
-		return false
-	}
-	return true
-}
-func (p *LogEntryRequest) Field3DeepEqual(src *LogEntry) bool {
-
-	if !p.Entry.DeepEqual(src) {
+	if strings.Compare(p.Cmd, src) != 0 {
 		return false
 	}
 	return true
 }
 
 type LogEntryResponse struct {
-	Code  bool      `thrift:"code,1" frugal:"1,default,bool" json:"code"`
-	Entry *LogEntry `thrift:"entry,2" frugal:"2,default,LogEntry" json:"entry"`
+	Code  bool        `thrift:"code,1" frugal:"1,default,bool" json:"code"`
+	Entry []*LogEntry `thrift:"entry,2" frugal:"2,default,list<LogEntry>" json:"entry"`
 }
 
 func NewLogEntryResponse() *LogEntryResponse {
@@ -2340,28 +2273,19 @@ func (p *LogEntryResponse) GetCode() (v bool) {
 	return p.Code
 }
 
-var LogEntryResponse_Entry_DEFAULT *LogEntry
-
-func (p *LogEntryResponse) GetEntry() (v *LogEntry) {
-	if !p.IsSetEntry() {
-		return LogEntryResponse_Entry_DEFAULT
-	}
+func (p *LogEntryResponse) GetEntry() (v []*LogEntry) {
 	return p.Entry
 }
 func (p *LogEntryResponse) SetCode(val bool) {
 	p.Code = val
 }
-func (p *LogEntryResponse) SetEntry(val *LogEntry) {
+func (p *LogEntryResponse) SetEntry(val []*LogEntry) {
 	p.Entry = val
 }
 
 var fieldIDToName_LogEntryResponse = map[int16]string{
 	1: "code",
 	2: "entry",
-}
-
-func (p *LogEntryResponse) IsSetEntry() bool {
-	return p.Entry != nil
 }
 
 func (p *LogEntryResponse) Read(iprot thrift.TProtocol) (err error) {
@@ -2394,7 +2318,7 @@ func (p *LogEntryResponse) Read(iprot thrift.TProtocol) (err error) {
 				}
 			}
 		case 2:
-			if fieldTypeId == thrift.STRUCT {
+			if fieldTypeId == thrift.LIST {
 				if err = p.ReadField2(iprot); err != nil {
 					goto ReadFieldError
 				}
@@ -2443,8 +2367,20 @@ func (p *LogEntryResponse) ReadField1(iprot thrift.TProtocol) error {
 }
 
 func (p *LogEntryResponse) ReadField2(iprot thrift.TProtocol) error {
-	p.Entry = NewLogEntry()
-	if err := p.Entry.Read(iprot); err != nil {
+	_, size, err := iprot.ReadListBegin()
+	if err != nil {
+		return err
+	}
+	p.Entry = make([]*LogEntry, 0, size)
+	for i := 0; i < size; i++ {
+		_elem := NewLogEntry()
+		if err := _elem.Read(iprot); err != nil {
+			return err
+		}
+
+		p.Entry = append(p.Entry, _elem)
+	}
+	if err := iprot.ReadListEnd(); err != nil {
 		return err
 	}
 	return nil
@@ -2501,10 +2437,18 @@ WriteFieldEndError:
 }
 
 func (p *LogEntryResponse) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("entry", thrift.STRUCT, 2); err != nil {
+	if err = oprot.WriteFieldBegin("entry", thrift.LIST, 2); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := p.Entry.Write(oprot); err != nil {
+	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Entry)); err != nil {
+		return err
+	}
+	for _, v := range p.Entry {
+		if err := v.Write(oprot); err != nil {
+			return err
+		}
+	}
+	if err := oprot.WriteListEnd(); err != nil {
 		return err
 	}
 	if err = oprot.WriteFieldEnd(); err != nil {
@@ -2546,10 +2490,16 @@ func (p *LogEntryResponse) Field1DeepEqual(src bool) bool {
 	}
 	return true
 }
-func (p *LogEntryResponse) Field2DeepEqual(src *LogEntry) bool {
+func (p *LogEntryResponse) Field2DeepEqual(src []*LogEntry) bool {
 
-	if !p.Entry.DeepEqual(src) {
+	if len(p.Entry) != len(src) {
 		return false
+	}
+	for i, v := range p.Entry {
+		_src := src[i]
+		if !v.DeepEqual(_src) {
+			return false
+		}
 	}
 	return true
 }
@@ -3394,7 +3344,7 @@ type NodeService interface {
 
 	PSync(ctx context.Context, req *PSyncRequest) (r *PSyncResponse, err error)
 
-	OpLogEntry(ctx context.Context, req *LogEntryRequest) (r *LogEntryRequest, err error)
+	OpLogEntry(ctx context.Context, req *LogEntryRequest) (r *LogEntryResponse, err error)
 
 	Ping(ctx context.Context) (r *PingResponse, err error)
 
@@ -3454,7 +3404,7 @@ func (p *NodeServiceClient) PSync(ctx context.Context, req *PSyncRequest) (r *PS
 	}
 	return _result.GetSuccess(), nil
 }
-func (p *NodeServiceClient) OpLogEntry(ctx context.Context, req *LogEntryRequest) (r *LogEntryRequest, err error) {
+func (p *NodeServiceClient) OpLogEntry(ctx context.Context, req *LogEntryRequest) (r *LogEntryResponse, err error) {
 	var _args NodeServiceOpLogEntryArgs
 	_args.Req = req
 	var _result NodeServiceOpLogEntryResult
@@ -3689,7 +3639,7 @@ func (p *nodeServiceProcessorOpLogEntry) Process(ctx context.Context, seqId int3
 	iprot.ReadMessageEnd()
 	var err2 error
 	result := NodeServiceOpLogEntryResult{}
-	var retval *LogEntryRequest
+	var retval *LogEntryResponse
 	if retval, err2 = p.handler.OpLogEntry(ctx, args.Req); err2 != nil {
 		x := thrift.NewTApplicationException(thrift.INTERNAL_ERROR, "Internal error processing OpLogEntry: "+err2.Error())
 		oprot.WriteMessageBegin("OpLogEntry", thrift.EXCEPTION, seqId)
@@ -5025,7 +4975,7 @@ func (p *NodeServiceOpLogEntryArgs) Field1DeepEqual(src *LogEntryRequest) bool {
 }
 
 type NodeServiceOpLogEntryResult struct {
-	Success *LogEntryRequest `thrift:"success,0,optional" frugal:"0,optional,LogEntryRequest" json:"success,omitempty"`
+	Success *LogEntryResponse `thrift:"success,0,optional" frugal:"0,optional,LogEntryResponse" json:"success,omitempty"`
 }
 
 func NewNodeServiceOpLogEntryResult() *NodeServiceOpLogEntryResult {
@@ -5036,16 +4986,16 @@ func (p *NodeServiceOpLogEntryResult) InitDefault() {
 	*p = NodeServiceOpLogEntryResult{}
 }
 
-var NodeServiceOpLogEntryResult_Success_DEFAULT *LogEntryRequest
+var NodeServiceOpLogEntryResult_Success_DEFAULT *LogEntryResponse
 
-func (p *NodeServiceOpLogEntryResult) GetSuccess() (v *LogEntryRequest) {
+func (p *NodeServiceOpLogEntryResult) GetSuccess() (v *LogEntryResponse) {
 	if !p.IsSetSuccess() {
 		return NodeServiceOpLogEntryResult_Success_DEFAULT
 	}
 	return p.Success
 }
 func (p *NodeServiceOpLogEntryResult) SetSuccess(x interface{}) {
-	p.Success = x.(*LogEntryRequest)
+	p.Success = x.(*LogEntryResponse)
 }
 
 var fieldIDToName_NodeServiceOpLogEntryResult = map[int16]string{
@@ -5116,7 +5066,7 @@ ReadStructEndError:
 }
 
 func (p *NodeServiceOpLogEntryResult) ReadField0(iprot thrift.TProtocol) error {
-	p.Success = NewLogEntryRequest()
+	p.Success = NewLogEntryResponse()
 	if err := p.Success.Read(iprot); err != nil {
 		return err
 	}
@@ -5190,7 +5140,7 @@ func (p *NodeServiceOpLogEntryResult) DeepEqual(ano *NodeServiceOpLogEntryResult
 	return true
 }
 
-func (p *NodeServiceOpLogEntryResult) Field0DeepEqual(src *LogEntryRequest) bool {
+func (p *NodeServiceOpLogEntryResult) Field0DeepEqual(src *LogEntryResponse) bool {
 
 	if !p.Success.DeepEqual(src) {
 		return false
