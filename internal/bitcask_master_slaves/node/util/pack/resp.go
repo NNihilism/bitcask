@@ -43,7 +43,7 @@ func BuildOpLogEntryResp(vi interface{}) (interface{}, error) {
 		// valStr := strconv.Itoa(int(vi.(int64)))
 		info = fmt.Sprintf("(integer) %d", vi.(int64))
 	case reflect.Float64:
-		info = fmt.Sprintf("%f", vi.(float64))
+		info = fmt.Sprintf("\"%f\"", vi.(float64))
 	case reflect.Invalid:
 		info = "(nil)"
 	case reflect.Bool:
@@ -80,13 +80,15 @@ func ByteSliceToLogEntryArr(vi interface{}) []*node.LogEntry {
 		return res
 	}
 	fmt.Println("vi:", vi)
-	if v.Index(0).Kind() == reflect.Uint8 { // []byte
+	if v.Index(0).Kind() == reflect.Uint8 {
+		// []byte
 		val, ok := vi.([]byte)
 		if !ok {
 			return res
 		}
 		res = append(res, &node.LogEntry{Value: string(val)})
-	} else { // [][]byte
+	} else {
+		// [][]byte
 		// Convert to [][]byte and get the element.
 		// If use v.Index() to get element and pass it to ConvertToBSlice(), it will return "(undefine)"
 		// Because:
