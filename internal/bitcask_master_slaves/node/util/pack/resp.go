@@ -5,7 +5,6 @@ import (
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/errno"
 	"fmt"
 	"reflect"
-	"strconv"
 	"time"
 )
 
@@ -39,14 +38,12 @@ func BuildOpLogEntryResp(vi interface{}) (interface{}, error) {
 			info = fmt.Sprintf("\"%s\"", vi.(string))
 		}
 	case reflect.Int:
-		valStr := strconv.Itoa(vi.(int))
-		info = fmt.Sprintf("(integer) %s", valStr)
+		info = fmt.Sprintf("(integer) %d", vi.(int))
 	case reflect.Int64:
-		valStr := strconv.Itoa(int(vi.(int64)))
-		info = fmt.Sprintf("(integer) %s", valStr)
+		// valStr := strconv.Itoa(int(vi.(int64)))
+		info = fmt.Sprintf("(integer) %d", vi.(int64))
 	case reflect.Float64:
-		valStr := fmt.Sprintf("%f", vi.(float64))
-		info = fmt.Sprintf("(float) %s", valStr)
+		info = fmt.Sprintf("%f", vi.(float64))
 	case reflect.Invalid:
 		info = "(nil)"
 	case reflect.Bool:
