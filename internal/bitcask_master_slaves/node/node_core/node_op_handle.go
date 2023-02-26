@@ -205,6 +205,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		bitcaskNode.AddCache(req)
 		bitcaskNode.cf.CurReplicationOffset += 1
 		bitcaskNode.cf.MasterReplicationOffset += 1
+		req.EntryId = int64(bitcaskNode.cf.CurReplicationOffset)
 	}
 
 	// 若拓扑结构为星型，则从节点不需要进行后续操作
@@ -215,6 +216,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 	// 根据配置文件，将该数据进行异步/同步/半同步进行数据更新
 	switch config.Synchronous {
 	case config.Asynchronous:
+		go bitcaskNode.AsynchronousSync(req)
 	case config.SemiSynchronous:
 	case config.Synchronous:
 	default:
