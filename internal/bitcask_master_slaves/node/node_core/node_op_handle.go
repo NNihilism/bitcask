@@ -170,9 +170,14 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 	}
 
 	// 若为从节点，则判断EntryId是否为所需要的记录，如若不是，则向主节点发出增量复制请求
-	// if req.EntryId != int64(bitcaskNode.cf
-
-	// 若是，则将记录写入，并更新offset字段
+	if bitcaskNode.cf.Role == config.Slave && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 {
+		// 更新已知最大进度
+		if bitcaskNode.cf.MasterReplicationOffset < int(req.EntryId) {
+			bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
+		}
+		// 发送增量复制请求
+		return
+	}
 
 	// 执行对应的操作
 	rpcResp := &node.LogEntryResponse{}
@@ -192,8 +197,28 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		rpcResp = iResp.(*node.LogEntryResponse)
 	}
 
-	// 若为主节点，则根据配置文件，将该数据进行异步/同步/半同步进行数据更新
-	// 同时，需要将该记录进行保存，以供其他节点进行增量复制
+	if bitcaskNode.cf.Role == config.Slave {
+		// 进度相同，不会触发更新请求
+		bitcaskNode.cf.CurReplicationOffset = int(req.EntryId)
+	} else if bitcaskNode.cf.Role == config.Master {
+		// 将该记录进行保存，以供其他节点进行增量复制
+		bitcaskNode.AddCache(req)
+		bitcaskNode.cf.CurReplicationOffset += 1
+		bitcaskNode.cf.MasterReplicationOffset += 1
+	}
+
+	// 若拓扑结构为星型，则从节点不需要进行后续操作
+	if bitcaskNode.cf.Role == config.Slave && config.NodeTopology == config.Star {
+		return rpcResp, nil
+	}
+
+	// 根据配置文件，将该数据进行异步/同步/半同步进行数据更新
+	switch config.Synchronous {
+	case config.Asynchronous:
+	case config.SemiSynchronous:
+	case config.Synchronous:
+	default:
+	}
 
 	return rpcResp, nil
 }
