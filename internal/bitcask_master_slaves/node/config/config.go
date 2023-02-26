@@ -16,11 +16,20 @@ var RoleNameMap = map[Role]string{
 type Topology int8
 
 const (
-	Star = iota
+	Star Topology = iota
 	Line
 )
+
 const (
 	NodeTopology = Star
+)
+
+type SyncType int8
+
+const (
+	Synchronous     SyncType = iota // 同步
+	SemiSynchronous                 // 半同步
+	Asynchronous                    // 异步
 )
 
 const (

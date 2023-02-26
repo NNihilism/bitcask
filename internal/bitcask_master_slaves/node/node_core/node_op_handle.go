@@ -91,6 +91,45 @@ var supportedCommands = map[string]cmdHandler{
 	"info": info,
 }
 
+var cmdReadOperationMap = map[string]struct{}{
+	// string commands
+	"get":      {},
+	"mget":     {},
+	"getrange": {},
+	"strlen":   {},
+
+	// list
+	"llen":   {},
+	"lindex": {},
+	"lrange": {},
+
+	// hash commands
+	"hget":    {},
+	"hmget":   {},
+	"hexists": {},
+	"hlen":    {},
+	"hkeys":   {},
+	"hvals":   {},
+	"hgetall": {},
+	"hstrlen": {},
+	"hscan":   {},
+
+	// set commands
+	"sismember": {},
+	"smembers":  {},
+	"scard":     {},
+	"sdiff":     {},
+	"sunion":    {},
+
+	// zset commands
+	"zscore":    {},
+	"zcard":     {},
+	"zrange":    {},
+	"zrevrange": {},
+	"zrank":     {},
+	"zrevrank":  {},
+}
+
 func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryRequest) (resp *node.LogEntryResponse, err error) {
 	// type LogEntryRequest struct {
 	// 	EntryId int64    `thrift:"entry_id,1" frugal:"1,default,i64" json:"entry_id"`
@@ -120,7 +159,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 	}
 
 	// 非Master节点在从节点上进行写操作
-	if req.EntryId == 0 && bitcaskNode.cf.Role == config.Slave && isWriteOperation(command) {
+	if req.EntryId == 0 && bitcaskNode.cf.Role == config.Slave && isReadOperation(command) {
 		return &node.LogEntryResponse{
 			BaseResp: &node.BaseResp{
 				StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),
@@ -130,15 +169,21 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		}, nil
 	}
 
+	// 若为从节点，则判断EntryId是否为所需要的记录，如若不是，则向主节点发出增量复制请求
+	// if req.EntryId != int64(bitcaskNode.cf
+
+	// 若是，则将记录写入，并更新offset字段
+
+	// 执行对应的操作
 	rpcResp := &node.LogEntryResponse{}
-	// fmt.Println("command:", command)
-	// fmt.Println("args:", args)
 	if res, err := cmdFunc(bitcaskNode, util.StrArrToByteArr(args)); err != nil {
 		rpcResp.BaseResp = &node.BaseResp{
 			StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),
 			StatusMessage: err.Error(),
 			ServiceTime:   time.Now().Unix(),
 		}
+		// 无论主从节点，执行错误则不需要再继续后续操作
+		return rpcResp, nil
 	} else {
 		iResp, err := pack.BuildResp(pack.OpLogEntryResp, res)
 		if err != nil {
@@ -147,25 +192,14 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		rpcResp = iResp.(*node.LogEntryResponse)
 	}
 
-	return rpcResp, nil
-
-	// 若操作合法，则进行相应的数据操作
-
-	// 若为读操作请求，则返回结果，否则进行下面的操作
-
 	// 若为主节点，则根据配置文件，将该数据进行异步/同步/半同步进行数据更新
 	// 同时，需要将该记录进行保存，以供其他节点进行增量复制
 
-	// 若为从节点，则判断EntryId是否为所需要的记录，如若不是，则向主节点发出增量复制请求；若是，则将记录写入，并更新offset字段
-	// return nil, nil
+	return rpcResp, nil
 }
 
-var cmdWriteOperationMap = map[string]struct{}{
-	"get": {},
-}
-
-func isWriteOperation(command string) bool {
-	if _, ok := cmdWriteOperationMap[command]; ok {
+func isReadOperation(command string) bool {
+	if _, ok := cmdReadOperationMap[command]; ok {
 		return true
 	}
 	return false

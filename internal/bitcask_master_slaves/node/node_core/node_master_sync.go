@@ -1,1 +1,3 @@
 package nodeCore
+
+// func NormalSync

@@ -13,8 +13,6 @@ import (
 )
 
 func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest) (*node.RegisterSlaveResponse, error) {
-	fmt.Println("...4")
-
 	// 判断是否能够添加slave
 	// 星型拓扑 非master节点不能添加slave
 	if config.NodeTopology == config.Star && bitcaskNode.cf.Role != config.Master {
@@ -27,8 +25,6 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 		}, nil
 	}
 	// 判断是否重复添加
-	fmt.Println("...5")
-
 	if _, ok := bitcaskNode.slavesRpc[req.RunId]; ok {
 		return &node.RegisterSlaveResponse{
 			BaseResp: &node.BaseResp{
@@ -38,14 +34,12 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 			},
 		}, nil
 	}
-	fmt.Println("...6")
 
 	// 添加slave
 	// 1. rpc初始化
 	if len(bitcaskNode.slavesRpc) == 0 {
 		bitcaskNode.slavesRpc = make(map[string]nodeservice.Client)
 	}
-	fmt.Println("...7")
 
 	c, err := nodeservice.NewClient(
 		consts.NodeServiceName,
@@ -61,10 +55,8 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 			},
 		}, nil
 	}
-	fmt.Println("...8")
 
 	bitcaskNode.slavesRpc[req.RunId] = c
-	fmt.Println("...9")
 
 	// 2. 修改变量
 	bitcaskNode.cf.ConnectedSlaves += 1
@@ -76,4 +68,44 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 			ServiceTime:   time.Now().Unix(),
 		},
 	}, nil
+}
+
+// 缓存最小单元
+// lru中存储的value需要实现方法Len(), *node.LogEntryRequest是由kitex生成，不应该对其进行修改，故再进行简单封装
+type cacheItem struct {
+	req *node.LogEntryRequest
+}
+
+func (item *cacheItem) Len() int {
+	req := item.req
+	var res int = 8 // req.EntryId int64 8Byte
+
+	for i := range req.Args_ {
+		res += len(req.Args_[i])
+	}
+
+	res += len(req.Cmd)
+
+	return res
+}
+
+func (bitcaskNode *BitcaskNode) AddCache(req *node.LogEntryRequest) {
+	bitcaskNode.cacheMu.Lock()
+	defer bitcaskNode.cacheMu.Unlock()
+
+	bitcaskNode.opCache.Add(fmt.Sprintf("%d", req.EntryId), &cacheItem{req: req})
+}
+
+func (bitcaskNode *BitcaskNode) GetCache(key int64) (*node.LogEntryRequest, bool) {
+	bitcaskNode.cacheMu.Lock()
+	defer bitcaskNode.cacheMu.Unlock()
+
+	if bitcaskNode.opCache == nil {
+		return nil, false
+	}
+
+	if item, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", key)); ok {
+		return item.(*cacheItem).req, true
+	}
+	return nil, false
 }

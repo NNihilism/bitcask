@@ -5,8 +5,10 @@ import (
 	"bitcaskDB/internal/bitcask"
 	"bitcaskDB/internal/bitcask_master_slaves/node/config"
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node/nodeservice"
+	"bitcaskDB/internal/bitcask_master_slaves/node/util/lru"
 	"bitcaskDB/internal/options"
 	"fmt"
+	"sync"
 )
 
 type BitcaskNode struct {
@@ -15,6 +17,9 @@ type BitcaskNode struct {
 
 	slavesRpc map[string]nodeservice.Client
 	masterRpc *nodeservice.Client
+
+	cacheMu *sync.Mutex
+	opCache *lru.Cache // 主节点用于存储最近收到的写命令，供从节点进行增量复制
 }
 
 func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
@@ -27,8 +32,10 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
 	// defer db.Close()
 
 	node := &BitcaskNode{
-		db: db,
-		cf: nodeConfig,
+		db:      db,
+		cf:      nodeConfig,
+		cacheMu: new(sync.Mutex),
+		opCache: lru.New(51200, nil),
 	}
 	return node, nil
 }

@@ -128,7 +128,3 @@ func (cl *Client) read() []byte {
 func (cl *Client) Close() {
 
 }
-
-// func (cl *Client) done() {
-// 	cl.Done <- struct{}{}
-// }
