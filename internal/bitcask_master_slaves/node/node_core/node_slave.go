@@ -19,7 +19,6 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 		consts.NodeServiceName,
 		client.WithHostPorts(req.Address),
 	)
-	fmt.Println("...1")
 	if err != nil {
 		log.Errorf("Init rpcclient err [%v]", err)
 		return &node.SendSlaveofResponse{
@@ -30,14 +29,12 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 			},
 		}, nil
 	}
-	fmt.Println("...2")
 
 	// 调用对方的RegisterSlave方法
 	rpcResp, err := c.RegisterSlave(context.Background(), &node.RegisterSlaveRequest{
 		Address: bitcaskNode.cf.Addr,
 		RunId:   bitcaskNode.cf.ID,
 	})
-	fmt.Println("...3")
 
 	if err != nil {
 		// log.Errorf("Init rpcclient err [%v]", err)
@@ -49,18 +46,15 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 			},
 		}, nil
 	}
-	fmt.Println("...4")
 
 	// 若成功，则改变自身状态信息
 	if rpcResp.BaseResp.StatusCode == 0 {
 		bitcaskNode.masterRpc = &c
 		bitcaskNode.cf.Role = config.Slave
 	}
-	fmt.Println("...5")
 
 	resp = new(node.SendSlaveofResponse)
 	resp.BaseResp = rpcResp.BaseResp
-	fmt.Println("...6")
 
 	// 失败，则返回错误信息
 	return
