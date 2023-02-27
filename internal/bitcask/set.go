@@ -264,3 +264,19 @@ func (db *BitcaskDB) sMembers(key []byte) ([][]byte, error) {
 	}
 	return members, nil
 }
+
+// GetStrsKeys get all stored keys of type String.
+func (db *BitcaskDB) GetSetKeys() ([][]byte, error) {
+	db.setIndex.mu.RLock()
+	defer db.setIndex.mu.RUnlock()
+
+	if db.setIndex.trees == nil {
+		return nil, nil
+	}
+
+	var keys [][]byte
+	for k := range db.setIndex.trees {
+		keys = append(keys, []byte(k))
+	}
+	return keys, nil
+}
