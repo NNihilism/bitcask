@@ -64,7 +64,7 @@ var supportedCommands = map[string]cmdHandler{
 	"hdel":    hDel,
 	"hexists": hExists,
 	"hlen":    hLen,
-	"hkeys":   hKeys,
+	"hfields": hFields,
 	"hvals":   hVals,
 	"hgetall": hGetAll,
 	"hstrlen": hStrLen,
@@ -472,11 +472,11 @@ func hLen(cli *ClientHandle, args [][]byte) (interface{}, error) {
 	return cli.db.HLen(args[0]), nil
 }
 
-func hKeys(cli *ClientHandle, args [][]byte) (interface{}, error) {
+func hFields(cli *ClientHandle, args [][]byte) (interface{}, error) {
 	if len(args) != 1 {
 		return nil, newWrongNumOfArgsError("hkeys")
 	}
-	return cli.db.HKeys(args[0])
+	return cli.db.HFields(args[0])
 }
 
 func hVals(cli *ClientHandle, args [][]byte) (interface{}, error) {
