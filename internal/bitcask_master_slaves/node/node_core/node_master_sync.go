@@ -4,6 +4,7 @@ import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/config"
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node/nodeservice"
+	"bitcaskDB/internal/log"
 	"context"
 	"fmt"
 	"sync"
@@ -60,9 +61,36 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 }
 
 // 增量复制
-func (bitcakNode *BitcaskNode) IncreReplication(slaveId string, offset int64) {
-	if bitcakNode.slavesStatus[slaveId] == slaveInIncrRepl {
+func (bitcaskNode *BitcaskNode) IncreReplication(slaveId string, offset int64) {
+	// 已有协程在进行增量复制
+	if bitcaskNode.slavesStatus[slaveId] == slaveInIncrRepl {
 		return
+	}
+
+	for i := 0; i < bitcaskNode.cf.CurReplicationOffset-int(offset); i++ {
+		log.Infof("与slave[%d]进行增量复制.", slaveId)
+		bitcaskNode.cacheMu.Lock()
+		iReq, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", offset+int64(i)))
+		bitcaskNode.cacheMu.Unlock()
+
+		if !ok {
+			// 转全量复制，没能找到缓存
+			// 状态设置
+			return
+		}
+		iCacheItem, ok := iReq.(*cacheItem)
+		req := iCacheItem.req
+		log.Infof("发送数据req[%v]进行增量复制\n", req)
+
+		resp, err := bitcaskNode.slavesRpc[slaveId].OpLogEntry(context.Background(), req)
+		if err != nil {
+			log.Errorf("IncreReplication err [%v]", err)
+		}
+		if resp.BaseResp.StatusCode != int64(node.ErrCode_SuccessCode) {
+			// 同步失败 要不把节点删了？
+			bitcaskNode.RemoveSlave(slaveId)
+			return
+		}
 	}
 }
 

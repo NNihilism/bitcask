@@ -59,6 +59,9 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 
 	// 2. 修改变量
 	bitcaskNode.cf.ConnectedSlaves += 1
+	if len(bitcaskNode.slavesStatus) == 0 {
+		bitcaskNode.slavesStatus = make(map[string]slaveStatusCode)
+	}
 	bitcaskNode.slavesStatus[req.RunId] = slaveInIdle
 	// 返回结果
 	return &node.RegisterSlaveResponse{
@@ -68,6 +71,10 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 			ServiceTime:   time.Now().Unix(),
 		},
 	}, nil
+}
+
+func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
+	return nil
 }
 
 // 缓存最小单元
