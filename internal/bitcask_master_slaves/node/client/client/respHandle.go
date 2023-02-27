@@ -37,7 +37,6 @@ func ToString(obj interface{}) ([]byte, error) {
 
 		bf.WriteString("CurReplicationOffset:")
 		bf.WriteString(strconv.Itoa(int(resp.CurReplicationOffset)))
-		bf.WriteString("\n")
 	case "SendSlaveofResponse":
 		// type SendSlaveofResponse struct {
 		// 	BaseResp *BaseResp `thrift:"base_resp,1" frugal:"1,default,BaseResp" json:"base_resp"`
