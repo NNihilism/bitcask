@@ -20,33 +20,3 @@ func opLogEntry(client *Client, cmd []byte, args [][]byte) (interface{}, error) 
 		return result, nil
 	}
 }
-
-// func set(client *Client, args [][]byte) (interface{}, error) {
-// 	resp, err := client.rpcClient.OpLogEntry(context.Background(), &node.LogEntryRequest{
-// 		Cmd:   "set",
-// 		Args_: util.BytesArrToStrArr(args),
-// 	})
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if result, err := ToString(resp); err != nil {
-// 		return nil, err
-// 	} else {
-// 		return result, nil
-// 	}
-// }
-
-// func get(client *Client, args [][]byte) (interface{}, error) {
-// 	resp, err := client.rpcClient.OpLogEntry(context.Background(), &node.LogEntryRequest{
-// 		Cmd:   "get",
-// 		Args_: util.BytesArrToStrArr(args),
-// 	})
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if result, err := ToString(resp); err != nil {
-// 		return nil, err
-// 	} else {
-// 		return result, nil
-// 	}
-// }
