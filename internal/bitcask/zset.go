@@ -171,3 +171,19 @@ func (db *BitcaskDB) zRankInternal(key []byte, member []byte, rev bool) (ok bool
 	}
 	return
 }
+
+// ZScore returns the score of member in the sorted set at key.
+func (db *BitcaskDB) ZKeys() [][]byte {
+	db.zsetIndex.mu.RLock()
+	defer db.zsetIndex.mu.RUnlock()
+
+	return db.zsetIndex.indexes.ZKeys()
+}
+
+// ZScore returns the score of member in the sorted set at key.
+func (db *BitcaskDB) ZMembers(key []byte) [][]byte {
+	db.zsetIndex.mu.RLock()
+	defer db.zsetIndex.mu.RUnlock()
+
+	return util.StrArrToByteArr(db.zsetIndex.indexes.ZMembers(string(key)))
+}
