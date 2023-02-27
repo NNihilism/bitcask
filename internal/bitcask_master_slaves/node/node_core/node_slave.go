@@ -8,7 +8,6 @@ import (
 	"bitcaskDB/internal/log"
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/cloudwego/kitex/client"
@@ -67,11 +66,9 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 // 从节点给主节点发送Psync请求
 func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 	// 是不是该判断下状态，避免重复发送请求？ 或者在master判断，拒绝给同一个slave创建多个协程进行增量/全量更新
-	masterId, _ := strconv.ParseInt(bitcaskNode.cf.MasterId, 10, 64)
-	slaveId, _ := strconv.ParseInt(bitcaskNode.cf.ID, 10, 64)
 	resp, err := bitcaskNode.masterRpc.PSync(context.Background(), &node.PSyncRequest{
-		MasterId: masterId,
-		SlaveId:  slaveId,
+		MasterId: bitcaskNode.cf.MasterId,
+		SlaveId:  bitcaskNode.cf.ID,
 		Offset:   int64(bitcaskNode.cf.CurReplicationOffset) + 1, // 申请已有的下一个
 	})
 	if err != nil {

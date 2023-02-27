@@ -55,13 +55,15 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 }
 
 // 全量复制
-func (bitcaskNode *BitcaskNode) FullReplication(slaveId int64) {
+func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 
 }
 
 // 增量复制
-func (bitcakNode *BitcaskNode) IncreReplication(slaveId int64, offset int64) {
-
+func (bitcakNode *BitcaskNode) IncreReplication(slaveId string, offset int64) {
+	if bitcakNode.slavesStatus[slaveId] == slaveInIncrRepl {
+		return
+	}
 }
 
 // 主节点收到PSync后，判断进行增量复制还是全量复制，将判断结果返回，并异步执行复制

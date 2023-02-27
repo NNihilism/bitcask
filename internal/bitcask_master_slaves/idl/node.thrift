@@ -61,8 +61,8 @@ struct LogEntry {
 
 # 数据更新请求（从节点主动发出）
 struct PSyncRequest {
-    1: i64 master_id
-    2: i64 slave_id
+    1: string master_id
+    2: string slave_id
     3: i64 offset   // 从节点的复制进度，如果为-1则表示全量复制，否则为增量复制，若master判断无法满足增量复制条件，则开始进行全量复制
 }
 

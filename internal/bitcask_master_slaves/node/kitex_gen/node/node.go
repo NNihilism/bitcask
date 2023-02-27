@@ -1588,9 +1588,9 @@ func (p *LogEntry) Field4DeepEqual(src int64) bool {
 }
 
 type PSyncRequest struct {
-	MasterId int64 `thrift:"master_id,1" frugal:"1,default,i64" json:"master_id"`
-	SlaveId  int64 `thrift:"slave_id,2" frugal:"2,default,i64" json:"slave_id"`
-	Offset   int64 `thrift:"offset,3" frugal:"3,default,i64" json:"offset"`
+	MasterId string `thrift:"master_id,1" frugal:"1,default,string" json:"master_id"`
+	SlaveId  string `thrift:"slave_id,2" frugal:"2,default,string" json:"slave_id"`
+	Offset   int64  `thrift:"offset,3" frugal:"3,default,i64" json:"offset"`
 }
 
 func NewPSyncRequest() *PSyncRequest {
@@ -1601,21 +1601,21 @@ func (p *PSyncRequest) InitDefault() {
 	*p = PSyncRequest{}
 }
 
-func (p *PSyncRequest) GetMasterId() (v int64) {
+func (p *PSyncRequest) GetMasterId() (v string) {
 	return p.MasterId
 }
 
-func (p *PSyncRequest) GetSlaveId() (v int64) {
+func (p *PSyncRequest) GetSlaveId() (v string) {
 	return p.SlaveId
 }
 
 func (p *PSyncRequest) GetOffset() (v int64) {
 	return p.Offset
 }
-func (p *PSyncRequest) SetMasterId(val int64) {
+func (p *PSyncRequest) SetMasterId(val string) {
 	p.MasterId = val
 }
-func (p *PSyncRequest) SetSlaveId(val int64) {
+func (p *PSyncRequest) SetSlaveId(val string) {
 	p.SlaveId = val
 }
 func (p *PSyncRequest) SetOffset(val int64) {
@@ -1648,7 +1648,7 @@ func (p *PSyncRequest) Read(iprot thrift.TProtocol) (err error) {
 
 		switch fieldId {
 		case 1:
-			if fieldTypeId == thrift.I64 {
+			if fieldTypeId == thrift.STRING {
 				if err = p.ReadField1(iprot); err != nil {
 					goto ReadFieldError
 				}
@@ -1658,7 +1658,7 @@ func (p *PSyncRequest) Read(iprot thrift.TProtocol) (err error) {
 				}
 			}
 		case 2:
-			if fieldTypeId == thrift.I64 {
+			if fieldTypeId == thrift.STRING {
 				if err = p.ReadField2(iprot); err != nil {
 					goto ReadFieldError
 				}
@@ -1708,7 +1708,7 @@ ReadStructEndError:
 }
 
 func (p *PSyncRequest) ReadField1(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadI64(); err != nil {
+	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
 		p.MasterId = v
@@ -1717,7 +1717,7 @@ func (p *PSyncRequest) ReadField1(iprot thrift.TProtocol) error {
 }
 
 func (p *PSyncRequest) ReadField2(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadI64(); err != nil {
+	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
 		p.SlaveId = v
@@ -1772,10 +1772,10 @@ WriteStructEndError:
 }
 
 func (p *PSyncRequest) writeField1(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("master_id", thrift.I64, 1); err != nil {
+	if err = oprot.WriteFieldBegin("master_id", thrift.STRING, 1); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteI64(p.MasterId); err != nil {
+	if err := oprot.WriteString(p.MasterId); err != nil {
 		return err
 	}
 	if err = oprot.WriteFieldEnd(); err != nil {
@@ -1789,10 +1789,10 @@ WriteFieldEndError:
 }
 
 func (p *PSyncRequest) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("slave_id", thrift.I64, 2); err != nil {
+	if err = oprot.WriteFieldBegin("slave_id", thrift.STRING, 2); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteI64(p.SlaveId); err != nil {
+	if err := oprot.WriteString(p.SlaveId); err != nil {
 		return err
 	}
 	if err = oprot.WriteFieldEnd(); err != nil {
@@ -1847,16 +1847,16 @@ func (p *PSyncRequest) DeepEqual(ano *PSyncRequest) bool {
 	return true
 }
 
-func (p *PSyncRequest) Field1DeepEqual(src int64) bool {
+func (p *PSyncRequest) Field1DeepEqual(src string) bool {
 
-	if p.MasterId != src {
+	if strings.Compare(p.MasterId, src) != 0 {
 		return false
 	}
 	return true
 }
-func (p *PSyncRequest) Field2DeepEqual(src int64) bool {
+func (p *PSyncRequest) Field2DeepEqual(src string) bool {
 
-	if p.SlaveId != src {
+	if strings.Compare(p.SlaveId, src) != 0 {
 		return false
 	}
 	return true
