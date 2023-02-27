@@ -35,7 +35,7 @@ func main() {
 		fmt.Println("Hash key watermelon exist.")
 	}
 
-	fields, err := db.HKeys([]byte("watermelon"))
+	fields, err := db.HFields([]byte("watermelon"))
 	if err != nil {
 		fmt.Printf("Hkeys error: %v", err)
 	}
