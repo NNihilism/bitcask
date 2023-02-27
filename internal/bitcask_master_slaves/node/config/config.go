@@ -1,5 +1,6 @@
-// 数据一致性
 package config
+
+import "time"
 
 type Role int
 
@@ -20,20 +21,20 @@ const (
 	Line
 )
 
-const (
-	NodeTopology = Star
-)
-
-type SyncType int8
+type SyncTypeCode int8
 
 const (
-	Synchronous     SyncType = iota // 同步
-	SemiSynchronous                 // 半同步
-	Asynchronous                    // 异步
+	Synchronous     SyncTypeCode = iota // 同步
+	SemiSynchronous                     // 半同步
+	Asynchronous                        // 异步
 )
 
 const (
-	BaseDBPath = "/home/tmp/"
+	BaseDBPath                  = "/home/tmp/"
+	RpcTimeOut                  = time.Second // rpc超时时间
+	NodeTopology                = Star
+	SyncType                    = SemiSynchronous
+	SemiSynchronousRate float64 = 0.5 // 需要进行同步更新的比例
 )
 
 type NodeConfig struct {

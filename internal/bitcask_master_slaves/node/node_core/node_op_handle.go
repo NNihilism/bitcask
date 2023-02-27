@@ -213,13 +213,16 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		return rpcResp, nil
 	}
 
-	// 根据配置文件，将该数据进行异步/同步/半同步进行数据更新
+	// 根据配置文件，将该数据进行异步/半同步/同步进行数据更新
 	switch config.Synchronous {
 	case config.Asynchronous:
 		go bitcaskNode.AsynchronousSync(req)
 	case config.SemiSynchronous:
+		bitcaskNode.SemiSynchronousSync(req)
 	case config.Synchronous:
+		bitcaskNode.SynchronousSync(req)
 	default:
+		bitcaskNode.SynchronousSync(req)
 	}
 
 	return rpcResp, nil
