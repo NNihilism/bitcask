@@ -203,7 +203,20 @@ func (db *BitcaskDB) HLen(key []byte) int {
 }
 
 // HKeys returns all field names in the hash stored at key.
-func (db *BitcaskDB) HKeys(key []byte) ([][]byte, error) {
+func (db *BitcaskDB) HKeys() ([][]byte, error) {
+	db.hashIndex.mu.RLock()
+	defer db.hashIndex.mu.RUnlock()
+
+	var keys [][]byte
+	for k := range db.hashIndex.trees {
+		keys = append(keys, []byte(k))
+	}
+	return keys, nil
+
+}
+
+// HFields returns all field names in the hash stored at key.
+func (db *BitcaskDB) HFields(key []byte) ([][]byte, error) {
 	db.hashIndex.mu.RLock()
 	defer db.hashIndex.mu.RUnlock()
 
