@@ -13,6 +13,7 @@ import (
 type Client interface {
 	SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest, callOptions ...callopt.Option) (r *node.SendSlaveofResponse, err error)
 	RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest, callOptions ...callopt.Option) (r *node.RegisterSlaveResponse, err error)
+	IncrReplFailNotify(ctx context.Context, masterId string, callOptions ...callopt.Option) (r bool, err error)
 	PSync(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error)
 	OpLogEntry(ctx context.Context, req *node.LogEntryRequest, callOptions ...callopt.Option) (r *node.LogEntryResponse, err error)
 	Ping(ctx context.Context, callOptions ...callopt.Option) (r *node.PingResponse, err error)
@@ -56,6 +57,11 @@ func (p *kNodeServiceClient) SendSlaveof(ctx context.Context, req *node.SendSlav
 func (p *kNodeServiceClient) RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest, callOptions ...callopt.Option) (r *node.RegisterSlaveResponse, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.RegisterSlave(ctx, req)
+}
+
+func (p *kNodeServiceClient) IncrReplFailNotify(ctx context.Context, masterId string, callOptions ...callopt.Option) (r bool, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.IncrReplFailNotify(ctx, masterId)
 }
 
 func (p *kNodeServiceClient) PSync(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error) {

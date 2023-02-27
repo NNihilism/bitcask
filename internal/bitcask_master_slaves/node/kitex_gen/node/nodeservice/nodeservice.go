@@ -19,12 +19,13 @@ func NewServiceInfo() *kitex.ServiceInfo {
 	serviceName := "NodeService"
 	handlerType := (*node.NodeService)(nil)
 	methods := map[string]kitex.MethodInfo{
-		"SendSlaveof":   kitex.NewMethodInfo(sendSlaveofHandler, newNodeServiceSendSlaveofArgs, newNodeServiceSendSlaveofResult, false),
-		"RegisterSlave": kitex.NewMethodInfo(registerSlaveHandler, newNodeServiceRegisterSlaveArgs, newNodeServiceRegisterSlaveResult, false),
-		"PSync":         kitex.NewMethodInfo(pSyncHandler, newNodeServicePSyncArgs, newNodeServicePSyncResult, false),
-		"OpLogEntry":    kitex.NewMethodInfo(opLogEntryHandler, newNodeServiceOpLogEntryArgs, newNodeServiceOpLogEntryResult, false),
-		"Ping":          kitex.NewMethodInfo(pingHandler, newNodeServicePingArgs, newNodeServicePingResult, false),
-		"Info":          kitex.NewMethodInfo(infoHandler, newNodeServiceInfoArgs, newNodeServiceInfoResult, false),
+		"SendSlaveof":        kitex.NewMethodInfo(sendSlaveofHandler, newNodeServiceSendSlaveofArgs, newNodeServiceSendSlaveofResult, false),
+		"RegisterSlave":      kitex.NewMethodInfo(registerSlaveHandler, newNodeServiceRegisterSlaveArgs, newNodeServiceRegisterSlaveResult, false),
+		"IncrReplFailNotify": kitex.NewMethodInfo(incrReplFailNotifyHandler, newNodeServiceIncrReplFailNotifyArgs, newNodeServiceIncrReplFailNotifyResult, false),
+		"PSync":              kitex.NewMethodInfo(pSyncHandler, newNodeServicePSyncArgs, newNodeServicePSyncResult, false),
+		"OpLogEntry":         kitex.NewMethodInfo(opLogEntryHandler, newNodeServiceOpLogEntryArgs, newNodeServiceOpLogEntryResult, false),
+		"Ping":               kitex.NewMethodInfo(pingHandler, newNodeServicePingArgs, newNodeServicePingResult, false),
+		"Info":               kitex.NewMethodInfo(infoHandler, newNodeServiceInfoArgs, newNodeServiceInfoResult, false),
 	}
 	extra := map[string]interface{}{
 		"PackageName": "node",
@@ -74,6 +75,24 @@ func newNodeServiceRegisterSlaveArgs() interface{} {
 
 func newNodeServiceRegisterSlaveResult() interface{} {
 	return node.NewNodeServiceRegisterSlaveResult()
+}
+
+func incrReplFailNotifyHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*node.NodeServiceIncrReplFailNotifyArgs)
+	realResult := result.(*node.NodeServiceIncrReplFailNotifyResult)
+	success, err := handler.(node.NodeService).IncrReplFailNotify(ctx, realArg.MasterId)
+	if err != nil {
+		return err
+	}
+	realResult.Success = &success
+	return nil
+}
+func newNodeServiceIncrReplFailNotifyArgs() interface{} {
+	return node.NewNodeServiceIncrReplFailNotifyArgs()
+}
+
+func newNodeServiceIncrReplFailNotifyResult() interface{} {
+	return node.NewNodeServiceIncrReplFailNotifyResult()
 }
 
 func pSyncHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
@@ -173,6 +192,16 @@ func (p *kClient) RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequ
 	_args.Req = req
 	var _result node.NodeServiceRegisterSlaveResult
 	if err = p.c.Call(ctx, "RegisterSlave", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) IncrReplFailNotify(ctx context.Context, masterId string) (r bool, err error) {
+	var _args node.NodeServiceIncrReplFailNotifyArgs
+	_args.MasterId = masterId
+	var _result node.NodeServiceIncrReplFailNotifyResult
+	if err = p.c.Call(ctx, "IncrReplFailNotify", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

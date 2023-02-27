@@ -114,7 +114,7 @@ service NodeService {
     # for other node
     RegisterSlaveResponse RegisterSlave(1: RegisterSlaveRequest req)
 
-    
+    bool IncrReplFailNotify(string masterId)    // 增量复制失败时,master用于通知slave增量复制终止
     PSyncResponse PSync(1: PSyncRequest req)
     LogEntryResponse OpLogEntry(1: LogEntryRequest req)
     PingResponse Ping()
