@@ -159,7 +159,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 	}
 
 	// 非Master节点在从节点上进行写操作
-	if req.EntryId == 0 && bitcaskNode.cf.Role == config.Slave && isReadOperation(command) {
+	if req.EntryId == 0 && bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
 		return &node.LogEntryResponse{
 			BaseResp: &node.BaseResp{
 				StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),
@@ -169,8 +169,8 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		}, nil
 	}
 
-	// 若为从节点，则判断EntryId是否为所需要的记录，如若不是，则向主节点发出增量复制请求
-	if bitcaskNode.cf.Role == config.Slave && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 {
+	// 若从节点收到了Master发来的写操作，则还要判断EntryId是否为所需要的记录，如若不是，则向主节点发出增量复制请求
+	if bitcaskNode.cf.Role == config.Slave && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 && !isReadOperation(command) {
 		// 更新已知最大进度
 		if bitcaskNode.cf.MasterReplicationOffset < int(req.EntryId) {
 			bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
