@@ -72,11 +72,11 @@ func hLen(bitcaskNode *BitcaskNode, args [][]byte) (interface{}, error) {
 	return bitcaskNode.db.HLen(args[0]), nil
 }
 
-func hKeys(bitcaskNode *BitcaskNode, args [][]byte) (interface{}, error) {
+func hFields(bitcaskNode *BitcaskNode, args [][]byte) (interface{}, error) {
 	if len(args) != 1 {
 		return nil, errno.NewErr(errno.ErrCodeWrongArgsNumber, &errno.ErrInfo{Cmd: "hkeys"})
 	}
-	return bitcaskNode.db.HKeys(args[0])
+	return bitcaskNode.db.HFields(args[0])
 }
 
 func hVals(bitcaskNode *BitcaskNode, args [][]byte) (interface{}, error) {
