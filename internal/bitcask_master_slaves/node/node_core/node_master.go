@@ -55,11 +55,11 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 			},
 		}, nil
 	}
-
 	bitcaskNode.slavesRpc[req.RunId] = c
 
 	// 2. 修改变量
 	bitcaskNode.cf.ConnectedSlaves += 1
+	bitcaskNode.slavesStatus[req.RunId] = slaveInIdle
 	// 返回结果
 	return &node.RegisterSlaveResponse{
 		BaseResp: &node.BaseResp{

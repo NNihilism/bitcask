@@ -11,7 +11,11 @@ import (
 
 // 异步更新
 func (bitcaskNode *BitcaskNode) AsynchronousSync(req *node.LogEntryRequest) {
-	for _, rpc := range bitcaskNode.slavesRpc {
+	for slaveId, rpc := range bitcaskNode.slavesRpc {
+		// 子节点正在进行全量/增量复制
+		if bitcaskNode.slavesStatus[slaveId] != slaveInIdle {
+			continue
+		}
 		ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
 		rpc.OpLogEntry(ctx, req)
 	}
@@ -23,7 +27,11 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 	semi_cnt := int(float64(len(bitcaskNode.slavesRpc)) * config.SemiSynchronousRate)
 	wg.Add(semi_cnt)
 
-	for _, rpc := range bitcaskNode.slavesRpc {
+	for slaveId, rpc := range bitcaskNode.slavesRpc {
+		// 子节点正在进行全量/增量复制
+		if bitcaskNode.slavesStatus[slaveId] != slaveInIdle {
+			continue
+		}
 		go func(rpc nodeservice.Client) {
 			defer wg.Done()
 			ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
@@ -36,7 +44,11 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 
 // 同步更新
 func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
-	for _, rpc := range bitcaskNode.slavesRpc {
+	for slaveId, rpc := range bitcaskNode.slavesRpc {
+		// 子节点正在进行全量/增量复制
+		if bitcaskNode.slavesStatus[slaveId] != slaveInIdle {
+			continue
+		}
 		ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
 		rpc.OpLogEntry(ctx, req)
 	}
@@ -59,12 +71,13 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 	resp := new(node.PSyncResponse)
 	// 如果缓存中能找到slave节点想要的偏移量， 则增量复制
 	if _, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", slave_repl_offset)); ok {
-		//
 		// go 增量复制
-		resp.Code = 1 //这里写死了，命名困难
+		go bitcaskNode.IncreReplication(req.SlaveId, req.Offset)
+		resp.Code = int8(config.IncreReplSync)
 	} else {
 		// go 全量复制
-		resp.Code = 2
+		go bitcaskNode.FullReplication(req.SlaveId)
+		resp.Code = int8(config.FullReplSync)
 	}
 	return resp, nil
 }

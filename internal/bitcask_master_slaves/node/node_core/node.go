@@ -11,12 +11,21 @@ import (
 	"sync"
 )
 
+type slaveStatusCode int8
+
+const (
+	slaveInFullRepl slaveStatusCode = iota //正在跟子节点进行全量复制
+	slaveInIncrRepl                        // 正在跟子节点进行增量复制
+	slaveInIdle                            // 跟子节点正常通信
+)
+
 type BitcaskNode struct {
 	db *bitcask.BitcaskDB
 	cf *config.NodeConfig
 
-	slavesRpc map[string]nodeservice.Client
-	masterRpc nodeservice.Client
+	slavesRpc    map[string]nodeservice.Client
+	slavesStatus map[string]slaveStatusCode
+	masterRpc    nodeservice.Client
 
 	cacheMu *sync.Mutex
 	opCache *lru.Cache // 主节点用于存储最近收到的写命令，供从节点进行增量复制
