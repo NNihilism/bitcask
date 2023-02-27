@@ -53,7 +53,7 @@ var supportedCommands = map[string]cmdHandler{
 	"hdel":    hDel,
 	"hexists": hExists,
 	"hlen":    hLen,
-	"hkeys":   hKeys,
+	"hfields": hFields,
 	"hvals":   hVals,
 	"hgetall": hGetAll,
 	"hstrlen": hStrLen,
@@ -169,8 +169,15 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		}, nil
 	}
 
-	// 若从节点收到了Master发来的写操作，则还要判断EntryId是否为所需要的记录，如若不是，则向主节点发出增量复制请求
-	if bitcaskNode.cf.Role == config.Slave && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 && !isReadOperation(command) {
+	// 从节点收到了Master发来的写操作
+	if bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
+		// 如果处于syncbusy状态，表明正在进行全量/增量复制，此时无视
+		if bitcaskNode.synctatus == config.SyncBusy {
+
+		}
+		// 	// 则还要判断EntryId是否为所需要的记录，如若不是，则向主节点发出增量复制请求
+
+		// if req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1
 		// 更新已知最大进度
 		if bitcaskNode.cf.MasterReplicationOffset < int(req.EntryId) {
 			bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
