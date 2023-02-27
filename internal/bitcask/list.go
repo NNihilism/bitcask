@@ -404,3 +404,19 @@ func (db *BitcaskDB) listSequence(headSeq, tailSeq uint32, index int) (uint32, e
 	}
 	return seq, nil
 }
+
+// GetStrsKeys get all stored keys of type String.
+func (db *BitcaskDB) GetListKeys() ([][]byte, error) {
+	db.listIndex.mu.RLock()
+	defer db.listIndex.mu.RUnlock()
+
+	if db.listIndex.trees == nil {
+		return nil, nil
+	}
+
+	var keys [][]byte
+	for k := range db.listIndex.trees {
+		keys = append(keys, []byte(k))
+	}
+	return keys, nil
+}
