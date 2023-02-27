@@ -173,7 +173,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 	if bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
 		// 如果处于syncbusy状态，表明正在进行全量复制，此时无视序列号，直接写入
 		// 如果不是syncbush状态，则可能正在进行增量复制或者状态正常，则需要判断序列号，不合法则返回
-		if bitcaskNode.synctatus != config.SyncBusy && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 {
+		if bitcaskNode.synctatus != nodeInFullRepl && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 {
 			// 更新已知最大进度
 			if bitcaskNode.cf.MasterReplicationOffset < int(req.EntryId) {
 				bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
@@ -207,6 +207,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		bitcaskNode.cf.CurReplicationOffset = int(req.EntryId)
 	} else if bitcaskNode.cf.Role == config.Master {
 		// 将该记录进行保存，以供其他节点进行增量复制
+		// TODO 将offset写入数据库,但不将opCache写入,写入offset只是为了能让logentry与offset(logentryId)一一对应
 		bitcaskNode.cf.CurReplicationOffset += 1
 		bitcaskNode.cf.MasterReplicationOffset += 1
 		req.EntryId = int64(bitcaskNode.cf.CurReplicationOffset)

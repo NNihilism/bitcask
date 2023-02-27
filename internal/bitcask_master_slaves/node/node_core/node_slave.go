@@ -75,6 +75,16 @@ func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 		return
 	}
 	if resp.Code == int8(config.FullReplSync) {
-		bitcaskNode.synctatus = config.SyncBusy // 只有全量复制时才开启这个变量，开启后对于写请求不会对序列号进行判断，而是直接写入
+		bitcaskNode.synctatus = nodeInFullRepl // 只有全量复制时才开启这个变量，开启后对于写请求不会对序列号进行判断，而是直接写入
 	}
+}
+
+// Slave增量复制失败
+func (bitcaskNode *BitcaskNode) HandleRepFailNotify(masterId string) (bool, error) {
+	// 请求全量复制
+	// 改变状态
+	bitcaskNode.synctatus = nodeInFullRepl
+	// 发送请求
+
+	return true, nil
 }

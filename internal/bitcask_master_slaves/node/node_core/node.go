@@ -11,12 +11,12 @@ import (
 	"sync"
 )
 
-type slaveStatusCode int8
+type nodeSynctatusCode int8
 
 const (
-	slaveInFullRepl slaveStatusCode = iota //正在跟子节点进行全量复制
-	slaveInIncrRepl                        // 正在跟子节点进行增量复制
-	slaveInIdle                            // 跟子节点正常通信
+	nodeInFullRepl nodeSynctatusCode = iota //正在跟子节点进行全量复制
+	nodeInIncrRepl                          // 正在跟子节点进行增量复制
+	nodeInIdle                              // 跟子节点正常通信
 )
 
 type BitcaskNode struct {
@@ -24,13 +24,13 @@ type BitcaskNode struct {
 	cf *config.NodeConfig
 
 	slavesRpc    map[string]nodeservice.Client
-	slavesStatus map[string]slaveStatusCode
+	slavesStatus map[string]nodeSynctatusCode
 	masterRpc    nodeservice.Client
 
 	cacheMu *sync.Mutex
 	opCache *lru.Cache // 主节点用于存储最近收到的写命令，供从节点进行增量复制
 
-	synctatus config.SyncStatus
+	synctatus nodeSynctatusCode
 }
 
 func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
@@ -47,7 +47,7 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
 		cf:        nodeConfig,
 		cacheMu:   new(sync.Mutex),
 		opCache:   lru.New(51200, nil),
-		synctatus: config.SyncIdle,
+		synctatus: nodeInIdle,
 	}
 	return node, nil
 }

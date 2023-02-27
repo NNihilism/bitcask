@@ -29,12 +29,12 @@ const (
 	Asynchronous                        // 异步
 )
 
-type SyncStatus int8
+// type SyncStatus int8
 
-const (
-	SyncIdle SyncStatus = iota //未进行同步中
-	SyncBusy                   // 正在进行同步
-)
+// const (
+// 	SyncIdle SyncStatus = iota //未进行同步中
+// 	SyncBusy                   // 正在进行同步
+// )
 
 const (
 	BaseDBPath                  = "/home/tmp/"

@@ -60,9 +60,9 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 	// 2. 修改变量
 	bitcaskNode.cf.ConnectedSlaves += 1
 	if len(bitcaskNode.slavesStatus) == 0 {
-		bitcaskNode.slavesStatus = make(map[string]slaveStatusCode)
+		bitcaskNode.slavesStatus = make(map[string]nodeSynctatusCode)
 	}
-	bitcaskNode.slavesStatus[req.RunId] = slaveInIdle
+	bitcaskNode.slavesStatus[req.RunId] = nodeInIdle
 	// 返回结果
 	return &node.RegisterSlaveResponse{
 		BaseResp: &node.BaseResp{
