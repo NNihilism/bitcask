@@ -57,7 +57,6 @@ func mGet(bitcaskNode *BitcaskNode, args [][]byte) (interface{}, error) {
 }
 
 func getRange(bitcaskNode *BitcaskNode, args [][]byte) (interface{}, error) {
-	// TODO
 	return resultOK, nil
 }
 

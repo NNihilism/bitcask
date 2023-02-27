@@ -74,6 +74,7 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 }
 
 func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
+	// TODO
 	return nil
 }
 

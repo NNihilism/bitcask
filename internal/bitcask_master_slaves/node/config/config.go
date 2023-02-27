@@ -42,6 +42,7 @@ const (
 	NodeTopology                = Star
 	SyncType                    = SemiSynchronous
 	SemiSynchronousRate float64 = 0.5 // 需要进行同步更新的比例
+	SyncChanSize                = 100
 )
 
 type NodeConfig struct {

@@ -85,6 +85,17 @@ func (bitcaskNode *BitcaskNode) HandleRepFailNotify(masterId string) (bool, erro
 	// 改变状态
 	bitcaskNode.synctatus = nodeInFullRepl
 	// 发送请求
-
+	resp, err := bitcaskNode.masterRpc.PSync(context.Background(), &node.PSyncRequest{
+		MasterId: bitcaskNode.cf.MasterId,
+		Offset:   -1,
+		SlaveId:  bitcaskNode.cf.ID,
+	})
+	if err != nil {
+		return false, err
+	}
+	if resp.Code != int8(config.FullReplSync) {
+		return false, err
+	}
+	bitcaskNode.cf.CurReplicationOffset = 0 // 进度清0
 	return true, nil
 }
