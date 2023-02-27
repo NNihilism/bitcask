@@ -29,6 +29,13 @@ const (
 	Asynchronous                        // 异步
 )
 
+type SyncStatus int8
+
+const (
+	SyncIdle SyncStatus = iota //未进行同步中
+	SyncBusy                   // 正在进行同步
+)
+
 const (
 	BaseDBPath                  = "/home/tmp/"
 	RpcTimeOut                  = time.Second // rpc超时时间
@@ -40,9 +47,18 @@ const (
 type NodeConfig struct {
 	Addr                    string
 	ID                      string
+	MasterId                string
 	Role                    Role
 	Path                    string
 	ConnectedSlaves         int
 	MasterReplicationOffset int
 	CurReplicationOffset    int
 }
+
+type PSyncRespCode int8
+
+const (
+	FullReplSync PSyncRespCode = iota // 告诉从节点，准备全量复制
+	IncreReplSync
+	Fail
+)

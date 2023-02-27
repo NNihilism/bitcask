@@ -12,7 +12,7 @@ type NodeServiceImpl struct{}
 // PSync implements the NodeServiceImpl interface.
 func (s *NodeServiceImpl) PSync(ctx context.Context, req *node.PSyncRequest) (resp *node.PSyncResponse, err error) {
 	// TODO: Your code here...
-	return
+	return bitcaskNode.HandlePSyncReq(req)
 }
 
 // Ping implements the NodeServiceImpl interface.

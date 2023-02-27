@@ -35,7 +35,6 @@ func (db *BitcaskDB) buildIndex(dataType DataType, ent *logfile.LogEntry, pos *v
 	case ZSet:
 		db.buildZSetIndex(ent, pos)
 	}
-
 }
 
 func (db *BitcaskDB) buildStrsIndex(ent *logfile.LogEntry, pos *valuePos) {

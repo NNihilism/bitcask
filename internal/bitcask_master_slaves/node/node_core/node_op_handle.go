@@ -171,19 +171,17 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 
 	// 从节点收到了Master发来的写操作
 	if bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
-		// 如果处于syncbusy状态，表明正在进行全量/增量复制，此时无视
-		if bitcaskNode.synctatus == config.SyncBusy {
-
+		// 如果处于syncbusy状态，表明正在进行全量复制，此时无视序列号，直接写入
+		// 如果不是syncbush状态，则可能正在进行增量复制或者状态正常，则需要判断序列号，不合法则返回
+		if bitcaskNode.synctatus != config.SyncBusy && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 {
+			// 更新已知最大进度
+			if bitcaskNode.cf.MasterReplicationOffset < int(req.EntryId) {
+				bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
+			}
+			// 发送数据同步请求
+			bitcaskNode.sendPSyncReq()
+			return
 		}
-		// 	// 则还要判断EntryId是否为所需要的记录，如若不是，则向主节点发出增量复制请求
-
-		// if req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1
-		// 更新已知最大进度
-		if bitcaskNode.cf.MasterReplicationOffset < int(req.EntryId) {
-			bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
-		}
-		// 发送增量复制请求
-		return
 	}
 
 	// 执行对应的操作
@@ -209,10 +207,10 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		bitcaskNode.cf.CurReplicationOffset = int(req.EntryId)
 	} else if bitcaskNode.cf.Role == config.Master {
 		// 将该记录进行保存，以供其他节点进行增量复制
-		bitcaskNode.AddCache(req)
 		bitcaskNode.cf.CurReplicationOffset += 1
 		bitcaskNode.cf.MasterReplicationOffset += 1
 		req.EntryId = int64(bitcaskNode.cf.CurReplicationOffset)
+		bitcaskNode.AddCache(req)
 	}
 
 	// 若拓扑结构为星型，则从节点不需要进行后续操作

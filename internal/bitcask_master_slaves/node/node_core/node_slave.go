@@ -8,6 +8,7 @@ import (
 	"bitcaskDB/internal/log"
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/cloudwego/kitex/client"
@@ -49,13 +50,34 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 
 	// 若成功，则改变自身状态信息
 	if rpcResp.BaseResp.StatusCode == 0 {
-		bitcaskNode.masterRpc = &c
+		bitcaskNode.masterRpc = c
 		bitcaskNode.cf.Role = config.Slave
+		bitcaskNode.cf.MasterId = rpcResp.RunId
 	}
 
 	resp = new(node.SendSlaveofResponse)
 	resp.BaseResp = rpcResp.BaseResp
 
-	// 失败，则返回错误信息
+	// 请求数据同步
+	go bitcaskNode.sendPSyncReq()
+
 	return
+}
+
+// 从节点给主节点发送Psync请求
+func (bitcaskNode *BitcaskNode) sendPSyncReq() {
+	// 是不是该判断下状态，避免重复发送请求？ 或者在master判断，拒绝给同一个slave创建多个协程进行增量/全量更新
+	masterId, _ := strconv.ParseInt(bitcaskNode.cf.MasterId, 10, 64)
+	slaveId, _ := strconv.ParseInt(bitcaskNode.cf.ID, 10, 64)
+	resp, err := bitcaskNode.masterRpc.PSync(context.Background(), &node.PSyncRequest{
+		MasterId: masterId,
+		SlaveId:  slaveId,
+		Offset:   int64(bitcaskNode.cf.CurReplicationOffset) + 1, // 申请已有的下一个
+	})
+	if err != nil {
+		return
+	}
+	if resp.Code == int8(config.FullReplSync) {
+		bitcaskNode.synctatus = config.SyncBusy // 只有全量复制时才开启这个变量，开启后对于写请求不会对序列号进行判断，而是直接写入
+	}
 }
