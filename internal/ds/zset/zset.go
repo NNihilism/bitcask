@@ -338,6 +338,29 @@ func (z *SortedSet) ZClear(key string) {
 	}
 }
 
+// ZKeys return all the key
+func (z *SortedSet) ZKeys() [][]byte {
+	res := make([][]byte, len(z.record))
+	index := 0
+	for key := range z.record {
+		res[index] = []byte(key)
+		index++
+	}
+	return res
+}
+
+// ZMembers return all the member and score in the specific key
+func (z *SortedSet) ZMembers(key string) []string {
+	dict := z.record[string(key)].dict
+	res := make([]string, len(dict))
+	index := 0
+	for member := range dict {
+		res[index] = member
+		index++
+	}
+	return res
+}
+
 func (z *SortedSet) exist(key string) bool {
 	_, exist := z.record[key]
 	return exist
