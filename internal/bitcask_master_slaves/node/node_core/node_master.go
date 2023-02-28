@@ -109,6 +109,7 @@ func (bitcaskNode *BitcaskNode) AddCache(req *node.LogEntryRequest) {
 	bitcaskNode.cacheMu.Lock()
 	defer bitcaskNode.cacheMu.Unlock()
 
+	log.Info("添加缓存[%v]", req)
 	bitcaskNode.opCache.Add(fmt.Sprintf("%d", req.EntryId), &cacheItem{req: req})
 }
 

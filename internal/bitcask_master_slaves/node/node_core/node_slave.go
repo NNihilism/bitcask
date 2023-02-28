@@ -69,7 +69,7 @@ func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 	resp, err := bitcaskNode.masterRpc.PSync(context.Background(), &node.PSyncRequest{
 		MasterId: bitcaskNode.cf.MasterId,
 		SlaveId:  bitcaskNode.cf.ID,
-		Offset:   int64(bitcaskNode.cf.CurReplicationOffset) + 1, // 申请已有的下一个
+		Offset:   int64(bitcaskNode.cf.CurReplicationOffset), // 申请已有的下一个
 	})
 	if err != nil {
 		return

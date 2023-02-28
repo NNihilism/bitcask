@@ -239,6 +239,7 @@ func (bitcaskNode *BitcaskNode) SyncLogEntryToSlave(ctx context.Context) {
 }
 
 // 增量复制
+// offset : slave当前的offset
 func (bitcaskNode *BitcaskNode) IncreReplication(slaveId string, offset int64) {
 	// 已有协程在进行增量复制
 	if status, ok := bitcaskNode.slavesStatus.Load(slaveId); !ok {
@@ -261,7 +262,8 @@ func (bitcaskNode *BitcaskNode) IncreReplication(slaveId string, offset int64) {
 		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 	}()
 
-	for i := 0; i < bitcaskNode.cf.CurReplicationOffset-int(offset); i++ {
+	log.Infof("offset : %d, master_offset : %d", offset, bitcaskNode.cf.CurReplicationOffset)
+	for i := 1; i <= bitcaskNode.cf.CurReplicationOffset-int(offset); i++ {
 		log.Infof("与slave[%s]进行增量复制.", slaveId)
 		bitcaskNode.cacheMu.Lock()
 		iReq, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", offset+int64(i)))
@@ -310,9 +312,9 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 
 	resp := new(node.PSyncResponse)
 	// 如果缓存中能找到slave节点想要的偏移量， 则增量复制
-	if _, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", slave_repl_offset)); ok {
+	if _, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", slave_repl_offset+1)); ok {
 		// go 增量复制
-		go bitcaskNode.IncreReplication(req.SlaveId, req.Offset)
+		go bitcaskNode.IncreReplication(req.SlaveId, slave_repl_offset)
 		resp.Code = int8(config.IncreReplSync)
 	} else {
 		// go 全量复制
