@@ -3553,6 +3553,7 @@ type ReplFinishNotifyReq struct {
 	SyncType     int8  `thrift:"sync_type,1" frugal:"1,default,i8" json:"sync_type"`
 	Ok           bool  `thrift:"ok,2" frugal:"2,default,bool" json:"ok"`
 	MasterOffset int64 `thrift:"master_offset,3" frugal:"3,default,i64" json:"master_offset"`
+	LastEntryId  int64 `thrift:"last_entry_id,4" frugal:"4,default,i64" json:"last_entry_id"`
 }
 
 func NewReplFinishNotifyReq() *ReplFinishNotifyReq {
@@ -3574,6 +3575,10 @@ func (p *ReplFinishNotifyReq) GetOk() (v bool) {
 func (p *ReplFinishNotifyReq) GetMasterOffset() (v int64) {
 	return p.MasterOffset
 }
+
+func (p *ReplFinishNotifyReq) GetLastEntryId() (v int64) {
+	return p.LastEntryId
+}
 func (p *ReplFinishNotifyReq) SetSyncType(val int8) {
 	p.SyncType = val
 }
@@ -3583,11 +3588,15 @@ func (p *ReplFinishNotifyReq) SetOk(val bool) {
 func (p *ReplFinishNotifyReq) SetMasterOffset(val int64) {
 	p.MasterOffset = val
 }
+func (p *ReplFinishNotifyReq) SetLastEntryId(val int64) {
+	p.LastEntryId = val
+}
 
 var fieldIDToName_ReplFinishNotifyReq = map[int16]string{
 	1: "sync_type",
 	2: "ok",
 	3: "master_offset",
+	4: "last_entry_id",
 }
 
 func (p *ReplFinishNotifyReq) Read(iprot thrift.TProtocol) (err error) {
@@ -3632,6 +3641,16 @@ func (p *ReplFinishNotifyReq) Read(iprot thrift.TProtocol) (err error) {
 		case 3:
 			if fieldTypeId == thrift.I64 {
 				if err = p.ReadField3(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 4:
+			if fieldTypeId == thrift.I64 {
+				if err = p.ReadField4(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -3696,6 +3715,15 @@ func (p *ReplFinishNotifyReq) ReadField3(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *ReplFinishNotifyReq) ReadField4(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadI64(); err != nil {
+		return err
+	} else {
+		p.LastEntryId = v
+	}
+	return nil
+}
+
 func (p *ReplFinishNotifyReq) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin("ReplFinishNotifyReq"); err != nil {
@@ -3712,6 +3740,10 @@ func (p *ReplFinishNotifyReq) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField3(oprot); err != nil {
 			fieldId = 3
+			goto WriteFieldError
+		}
+		if err = p.writeField4(oprot); err != nil {
+			fieldId = 4
 			goto WriteFieldError
 		}
 
@@ -3784,6 +3816,23 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
 }
 
+func (p *ReplFinishNotifyReq) writeField4(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("last_entry_id", thrift.I64, 4); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteI64(p.LastEntryId); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 end error: ", p), err)
+}
+
 func (p *ReplFinishNotifyReq) String() string {
 	if p == nil {
 		return "<nil>"
@@ -3804,6 +3853,9 @@ func (p *ReplFinishNotifyReq) DeepEqual(ano *ReplFinishNotifyReq) bool {
 		return false
 	}
 	if !p.Field3DeepEqual(ano.MasterOffset) {
+		return false
+	}
+	if !p.Field4DeepEqual(ano.LastEntryId) {
 		return false
 	}
 	return true
@@ -3830,6 +3882,13 @@ func (p *ReplFinishNotifyReq) Field3DeepEqual(src int64) bool {
 	}
 	return true
 }
+func (p *ReplFinishNotifyReq) Field4DeepEqual(src int64) bool {
+
+	if p.LastEntryId != src {
+		return false
+	}
+	return true
+}
 
 type NodeService interface {
 	SendSlaveof(ctx context.Context, req *SendSlaveofRequest) (r *SendSlaveofResponse, err error)
@@ -3838,7 +3897,9 @@ type NodeService interface {
 
 	ReplFinishNotify(ctx context.Context, req *ReplFinishNotifyReq) (r bool, err error)
 
-	PSync(ctx context.Context, req *PSyncRequest) (r *PSyncResponse, err error)
+	PSyncReq(ctx context.Context, req *PSyncRequest) (r *PSyncResponse, err error)
+
+	PSyncReady(ctx context.Context, req *PSyncRequest) (r *PSyncResponse, err error)
 
 	OpLogEntry(ctx context.Context, req *LogEntryRequest) (r *LogEntryResponse, err error)
 
@@ -3900,11 +3961,20 @@ func (p *NodeServiceClient) ReplFinishNotify(ctx context.Context, req *ReplFinis
 	}
 	return _result.GetSuccess(), nil
 }
-func (p *NodeServiceClient) PSync(ctx context.Context, req *PSyncRequest) (r *PSyncResponse, err error) {
-	var _args NodeServicePSyncArgs
+func (p *NodeServiceClient) PSyncReq(ctx context.Context, req *PSyncRequest) (r *PSyncResponse, err error) {
+	var _args NodeServicePSyncReqArgs
 	_args.Req = req
-	var _result NodeServicePSyncResult
-	if err = p.Client_().Call(ctx, "PSync", &_args, &_result); err != nil {
+	var _result NodeServicePSyncReqResult
+	if err = p.Client_().Call(ctx, "PSyncReq", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+func (p *NodeServiceClient) PSyncReady(ctx context.Context, req *PSyncRequest) (r *PSyncResponse, err error) {
+	var _args NodeServicePSyncReadyArgs
+	_args.Req = req
+	var _result NodeServicePSyncReadyResult
+	if err = p.Client_().Call(ctx, "PSyncReady", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil
@@ -3958,7 +4028,8 @@ func NewNodeServiceProcessor(handler NodeService) *NodeServiceProcessor {
 	self.AddToProcessorMap("SendSlaveof", &nodeServiceProcessorSendSlaveof{handler: handler})
 	self.AddToProcessorMap("RegisterSlave", &nodeServiceProcessorRegisterSlave{handler: handler})
 	self.AddToProcessorMap("ReplFinishNotify", &nodeServiceProcessorReplFinishNotify{handler: handler})
-	self.AddToProcessorMap("PSync", &nodeServiceProcessorPSync{handler: handler})
+	self.AddToProcessorMap("PSyncReq", &nodeServiceProcessorPSyncReq{handler: handler})
+	self.AddToProcessorMap("PSyncReady", &nodeServiceProcessorPSyncReady{handler: handler})
 	self.AddToProcessorMap("OpLogEntry", &nodeServiceProcessorOpLogEntry{handler: handler})
 	self.AddToProcessorMap("Ping", &nodeServiceProcessorPing{handler: handler})
 	self.AddToProcessorMap("Info", &nodeServiceProcessorInfo{handler: handler})
@@ -4126,16 +4197,16 @@ func (p *nodeServiceProcessorReplFinishNotify) Process(ctx context.Context, seqI
 	return true, err
 }
 
-type nodeServiceProcessorPSync struct {
+type nodeServiceProcessorPSyncReq struct {
 	handler NodeService
 }
 
-func (p *nodeServiceProcessorPSync) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
-	args := NodeServicePSyncArgs{}
+func (p *nodeServiceProcessorPSyncReq) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+	args := NodeServicePSyncReqArgs{}
 	if err = args.Read(iprot); err != nil {
 		iprot.ReadMessageEnd()
 		x := thrift.NewTApplicationException(thrift.PROTOCOL_ERROR, err.Error())
-		oprot.WriteMessageBegin("PSync", thrift.EXCEPTION, seqId)
+		oprot.WriteMessageBegin("PSyncReq", thrift.EXCEPTION, seqId)
 		x.Write(oprot)
 		oprot.WriteMessageEnd()
 		oprot.Flush(ctx)
@@ -4144,11 +4215,11 @@ func (p *nodeServiceProcessorPSync) Process(ctx context.Context, seqId int32, ip
 
 	iprot.ReadMessageEnd()
 	var err2 error
-	result := NodeServicePSyncResult{}
+	result := NodeServicePSyncReqResult{}
 	var retval *PSyncResponse
-	if retval, err2 = p.handler.PSync(ctx, args.Req); err2 != nil {
-		x := thrift.NewTApplicationException(thrift.INTERNAL_ERROR, "Internal error processing PSync: "+err2.Error())
-		oprot.WriteMessageBegin("PSync", thrift.EXCEPTION, seqId)
+	if retval, err2 = p.handler.PSyncReq(ctx, args.Req); err2 != nil {
+		x := thrift.NewTApplicationException(thrift.INTERNAL_ERROR, "Internal error processing PSyncReq: "+err2.Error())
+		oprot.WriteMessageBegin("PSyncReq", thrift.EXCEPTION, seqId)
 		x.Write(oprot)
 		oprot.WriteMessageEnd()
 		oprot.Flush(ctx)
@@ -4156,7 +4227,55 @@ func (p *nodeServiceProcessorPSync) Process(ctx context.Context, seqId int32, ip
 	} else {
 		result.Success = retval
 	}
-	if err2 = oprot.WriteMessageBegin("PSync", thrift.REPLY, seqId); err2 != nil {
+	if err2 = oprot.WriteMessageBegin("PSyncReq", thrift.REPLY, seqId); err2 != nil {
+		err = err2
+	}
+	if err2 = result.Write(oprot); err == nil && err2 != nil {
+		err = err2
+	}
+	if err2 = oprot.WriteMessageEnd(); err == nil && err2 != nil {
+		err = err2
+	}
+	if err2 = oprot.Flush(ctx); err == nil && err2 != nil {
+		err = err2
+	}
+	if err != nil {
+		return
+	}
+	return true, err
+}
+
+type nodeServiceProcessorPSyncReady struct {
+	handler NodeService
+}
+
+func (p *nodeServiceProcessorPSyncReady) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+	args := NodeServicePSyncReadyArgs{}
+	if err = args.Read(iprot); err != nil {
+		iprot.ReadMessageEnd()
+		x := thrift.NewTApplicationException(thrift.PROTOCOL_ERROR, err.Error())
+		oprot.WriteMessageBegin("PSyncReady", thrift.EXCEPTION, seqId)
+		x.Write(oprot)
+		oprot.WriteMessageEnd()
+		oprot.Flush(ctx)
+		return false, err
+	}
+
+	iprot.ReadMessageEnd()
+	var err2 error
+	result := NodeServicePSyncReadyResult{}
+	var retval *PSyncResponse
+	if retval, err2 = p.handler.PSyncReady(ctx, args.Req); err2 != nil {
+		x := thrift.NewTApplicationException(thrift.INTERNAL_ERROR, "Internal error processing PSyncReady: "+err2.Error())
+		oprot.WriteMessageBegin("PSyncReady", thrift.EXCEPTION, seqId)
+		x.Write(oprot)
+		oprot.WriteMessageEnd()
+		oprot.Flush(ctx)
+		return true, err2
+	} else {
+		result.Success = retval
+	}
+	if err2 = oprot.WriteMessageBegin("PSyncReady", thrift.REPLY, seqId); err2 != nil {
 		err = err2
 	}
 	if err2 = result.Write(oprot); err == nil && err2 != nil {
@@ -5362,39 +5481,39 @@ func (p *NodeServiceReplFinishNotifyResult) Field0DeepEqual(src *bool) bool {
 	return true
 }
 
-type NodeServicePSyncArgs struct {
+type NodeServicePSyncReqArgs struct {
 	Req *PSyncRequest `thrift:"req,1" frugal:"1,default,PSyncRequest" json:"req"`
 }
 
-func NewNodeServicePSyncArgs() *NodeServicePSyncArgs {
-	return &NodeServicePSyncArgs{}
+func NewNodeServicePSyncReqArgs() *NodeServicePSyncReqArgs {
+	return &NodeServicePSyncReqArgs{}
 }
 
-func (p *NodeServicePSyncArgs) InitDefault() {
-	*p = NodeServicePSyncArgs{}
+func (p *NodeServicePSyncReqArgs) InitDefault() {
+	*p = NodeServicePSyncReqArgs{}
 }
 
-var NodeServicePSyncArgs_Req_DEFAULT *PSyncRequest
+var NodeServicePSyncReqArgs_Req_DEFAULT *PSyncRequest
 
-func (p *NodeServicePSyncArgs) GetReq() (v *PSyncRequest) {
+func (p *NodeServicePSyncReqArgs) GetReq() (v *PSyncRequest) {
 	if !p.IsSetReq() {
-		return NodeServicePSyncArgs_Req_DEFAULT
+		return NodeServicePSyncReqArgs_Req_DEFAULT
 	}
 	return p.Req
 }
-func (p *NodeServicePSyncArgs) SetReq(val *PSyncRequest) {
+func (p *NodeServicePSyncReqArgs) SetReq(val *PSyncRequest) {
 	p.Req = val
 }
 
-var fieldIDToName_NodeServicePSyncArgs = map[int16]string{
+var fieldIDToName_NodeServicePSyncReqArgs = map[int16]string{
 	1: "req",
 }
 
-func (p *NodeServicePSyncArgs) IsSetReq() bool {
+func (p *NodeServicePSyncReqArgs) IsSetReq() bool {
 	return p.Req != nil
 }
 
-func (p *NodeServicePSyncArgs) Read(iprot thrift.TProtocol) (err error) {
+func (p *NodeServicePSyncReqArgs) Read(iprot thrift.TProtocol) (err error) {
 
 	var fieldTypeId thrift.TType
 	var fieldId int16
@@ -5443,7 +5562,7 @@ ReadStructBeginError:
 ReadFieldBeginError:
 	return thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
 ReadFieldError:
-	return thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncArgs[fieldId]), err)
+	return thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncReqArgs[fieldId]), err)
 SkipFieldError:
 	return thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
 
@@ -5453,7 +5572,7 @@ ReadStructEndError:
 	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
 }
 
-func (p *NodeServicePSyncArgs) ReadField1(iprot thrift.TProtocol) error {
+func (p *NodeServicePSyncReqArgs) ReadField1(iprot thrift.TProtocol) error {
 	p.Req = NewPSyncRequest()
 	if err := p.Req.Read(iprot); err != nil {
 		return err
@@ -5461,9 +5580,9 @@ func (p *NodeServicePSyncArgs) ReadField1(iprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *NodeServicePSyncArgs) Write(oprot thrift.TProtocol) (err error) {
+func (p *NodeServicePSyncReqArgs) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
-	if err = oprot.WriteStructBegin("PSync_args"); err != nil {
+	if err = oprot.WriteStructBegin("PSyncReq_args"); err != nil {
 		goto WriteStructBeginError
 	}
 	if p != nil {
@@ -5490,7 +5609,7 @@ WriteStructEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
 }
 
-func (p *NodeServicePSyncArgs) writeField1(oprot thrift.TProtocol) (err error) {
+func (p *NodeServicePSyncReqArgs) writeField1(oprot thrift.TProtocol) (err error) {
 	if err = oprot.WriteFieldBegin("req", thrift.STRUCT, 1); err != nil {
 		goto WriteFieldBeginError
 	}
@@ -5507,14 +5626,14 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 1 end error: ", p), err)
 }
 
-func (p *NodeServicePSyncArgs) String() string {
+func (p *NodeServicePSyncReqArgs) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("NodeServicePSyncArgs(%+v)", *p)
+	return fmt.Sprintf("NodeServicePSyncReqArgs(%+v)", *p)
 }
 
-func (p *NodeServicePSyncArgs) DeepEqual(ano *NodeServicePSyncArgs) bool {
+func (p *NodeServicePSyncReqArgs) DeepEqual(ano *NodeServicePSyncReqArgs) bool {
 	if p == ano {
 		return true
 	} else if p == nil || ano == nil {
@@ -5526,7 +5645,7 @@ func (p *NodeServicePSyncArgs) DeepEqual(ano *NodeServicePSyncArgs) bool {
 	return true
 }
 
-func (p *NodeServicePSyncArgs) Field1DeepEqual(src *PSyncRequest) bool {
+func (p *NodeServicePSyncReqArgs) Field1DeepEqual(src *PSyncRequest) bool {
 
 	if !p.Req.DeepEqual(src) {
 		return false
@@ -5534,39 +5653,39 @@ func (p *NodeServicePSyncArgs) Field1DeepEqual(src *PSyncRequest) bool {
 	return true
 }
 
-type NodeServicePSyncResult struct {
+type NodeServicePSyncReqResult struct {
 	Success *PSyncResponse `thrift:"success,0,optional" frugal:"0,optional,PSyncResponse" json:"success,omitempty"`
 }
 
-func NewNodeServicePSyncResult() *NodeServicePSyncResult {
-	return &NodeServicePSyncResult{}
+func NewNodeServicePSyncReqResult() *NodeServicePSyncReqResult {
+	return &NodeServicePSyncReqResult{}
 }
 
-func (p *NodeServicePSyncResult) InitDefault() {
-	*p = NodeServicePSyncResult{}
+func (p *NodeServicePSyncReqResult) InitDefault() {
+	*p = NodeServicePSyncReqResult{}
 }
 
-var NodeServicePSyncResult_Success_DEFAULT *PSyncResponse
+var NodeServicePSyncReqResult_Success_DEFAULT *PSyncResponse
 
-func (p *NodeServicePSyncResult) GetSuccess() (v *PSyncResponse) {
+func (p *NodeServicePSyncReqResult) GetSuccess() (v *PSyncResponse) {
 	if !p.IsSetSuccess() {
-		return NodeServicePSyncResult_Success_DEFAULT
+		return NodeServicePSyncReqResult_Success_DEFAULT
 	}
 	return p.Success
 }
-func (p *NodeServicePSyncResult) SetSuccess(x interface{}) {
+func (p *NodeServicePSyncReqResult) SetSuccess(x interface{}) {
 	p.Success = x.(*PSyncResponse)
 }
 
-var fieldIDToName_NodeServicePSyncResult = map[int16]string{
+var fieldIDToName_NodeServicePSyncReqResult = map[int16]string{
 	0: "success",
 }
 
-func (p *NodeServicePSyncResult) IsSetSuccess() bool {
+func (p *NodeServicePSyncReqResult) IsSetSuccess() bool {
 	return p.Success != nil
 }
 
-func (p *NodeServicePSyncResult) Read(iprot thrift.TProtocol) (err error) {
+func (p *NodeServicePSyncReqResult) Read(iprot thrift.TProtocol) (err error) {
 
 	var fieldTypeId thrift.TType
 	var fieldId int16
@@ -5615,7 +5734,7 @@ ReadStructBeginError:
 ReadFieldBeginError:
 	return thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
 ReadFieldError:
-	return thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncResult[fieldId]), err)
+	return thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncReqResult[fieldId]), err)
 SkipFieldError:
 	return thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
 
@@ -5625,7 +5744,7 @@ ReadStructEndError:
 	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
 }
 
-func (p *NodeServicePSyncResult) ReadField0(iprot thrift.TProtocol) error {
+func (p *NodeServicePSyncReqResult) ReadField0(iprot thrift.TProtocol) error {
 	p.Success = NewPSyncResponse()
 	if err := p.Success.Read(iprot); err != nil {
 		return err
@@ -5633,9 +5752,9 @@ func (p *NodeServicePSyncResult) ReadField0(iprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *NodeServicePSyncResult) Write(oprot thrift.TProtocol) (err error) {
+func (p *NodeServicePSyncReqResult) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
-	if err = oprot.WriteStructBegin("PSync_result"); err != nil {
+	if err = oprot.WriteStructBegin("PSyncReq_result"); err != nil {
 		goto WriteStructBeginError
 	}
 	if p != nil {
@@ -5662,7 +5781,7 @@ WriteStructEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
 }
 
-func (p *NodeServicePSyncResult) writeField0(oprot thrift.TProtocol) (err error) {
+func (p *NodeServicePSyncReqResult) writeField0(oprot thrift.TProtocol) (err error) {
 	if p.IsSetSuccess() {
 		if err = oprot.WriteFieldBegin("success", thrift.STRUCT, 0); err != nil {
 			goto WriteFieldBeginError
@@ -5681,14 +5800,14 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 0 end error: ", p), err)
 }
 
-func (p *NodeServicePSyncResult) String() string {
+func (p *NodeServicePSyncReqResult) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("NodeServicePSyncResult(%+v)", *p)
+	return fmt.Sprintf("NodeServicePSyncReqResult(%+v)", *p)
 }
 
-func (p *NodeServicePSyncResult) DeepEqual(ano *NodeServicePSyncResult) bool {
+func (p *NodeServicePSyncReqResult) DeepEqual(ano *NodeServicePSyncReqResult) bool {
 	if p == ano {
 		return true
 	} else if p == nil || ano == nil {
@@ -5700,7 +5819,353 @@ func (p *NodeServicePSyncResult) DeepEqual(ano *NodeServicePSyncResult) bool {
 	return true
 }
 
-func (p *NodeServicePSyncResult) Field0DeepEqual(src *PSyncResponse) bool {
+func (p *NodeServicePSyncReqResult) Field0DeepEqual(src *PSyncResponse) bool {
+
+	if !p.Success.DeepEqual(src) {
+		return false
+	}
+	return true
+}
+
+type NodeServicePSyncReadyArgs struct {
+	Req *PSyncRequest `thrift:"req,1" frugal:"1,default,PSyncRequest" json:"req"`
+}
+
+func NewNodeServicePSyncReadyArgs() *NodeServicePSyncReadyArgs {
+	return &NodeServicePSyncReadyArgs{}
+}
+
+func (p *NodeServicePSyncReadyArgs) InitDefault() {
+	*p = NodeServicePSyncReadyArgs{}
+}
+
+var NodeServicePSyncReadyArgs_Req_DEFAULT *PSyncRequest
+
+func (p *NodeServicePSyncReadyArgs) GetReq() (v *PSyncRequest) {
+	if !p.IsSetReq() {
+		return NodeServicePSyncReadyArgs_Req_DEFAULT
+	}
+	return p.Req
+}
+func (p *NodeServicePSyncReadyArgs) SetReq(val *PSyncRequest) {
+	p.Req = val
+}
+
+var fieldIDToName_NodeServicePSyncReadyArgs = map[int16]string{
+	1: "req",
+}
+
+func (p *NodeServicePSyncReadyArgs) IsSetReq() bool {
+	return p.Req != nil
+}
+
+func (p *NodeServicePSyncReadyArgs) Read(iprot thrift.TProtocol) (err error) {
+
+	var fieldTypeId thrift.TType
+	var fieldId int16
+
+	if _, err = iprot.ReadStructBegin(); err != nil {
+		goto ReadStructBeginError
+	}
+
+	for {
+		_, fieldTypeId, fieldId, err = iprot.ReadFieldBegin()
+		if err != nil {
+			goto ReadFieldBeginError
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+
+		switch fieldId {
+		case 1:
+			if fieldTypeId == thrift.STRUCT {
+				if err = p.ReadField1(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		default:
+			if err = iprot.Skip(fieldTypeId); err != nil {
+				goto SkipFieldError
+			}
+		}
+
+		if err = iprot.ReadFieldEnd(); err != nil {
+			goto ReadFieldEndError
+		}
+	}
+	if err = iprot.ReadStructEnd(); err != nil {
+		goto ReadStructEndError
+	}
+
+	return nil
+ReadStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct begin error: ", p), err)
+ReadFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
+ReadFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncReadyArgs[fieldId]), err)
+SkipFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
+
+ReadFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
+ReadStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *NodeServicePSyncReadyArgs) ReadField1(iprot thrift.TProtocol) error {
+	p.Req = NewPSyncRequest()
+	if err := p.Req.Read(iprot); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *NodeServicePSyncReadyArgs) Write(oprot thrift.TProtocol) (err error) {
+	var fieldId int16
+	if err = oprot.WriteStructBegin("PSyncReady_args"); err != nil {
+		goto WriteStructBeginError
+	}
+	if p != nil {
+		if err = p.writeField1(oprot); err != nil {
+			fieldId = 1
+			goto WriteFieldError
+		}
+
+	}
+	if err = oprot.WriteFieldStop(); err != nil {
+		goto WriteFieldStopError
+	}
+	if err = oprot.WriteStructEnd(); err != nil {
+		goto WriteStructEndError
+	}
+	return nil
+WriteStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
+WriteFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T write field %d error: ", p, fieldId), err)
+WriteFieldStopError:
+	return thrift.PrependError(fmt.Sprintf("%T write field stop error: ", p), err)
+WriteStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
+}
+
+func (p *NodeServicePSyncReadyArgs) writeField1(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("req", thrift.STRUCT, 1); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := p.Req.Write(oprot); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 1 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 1 end error: ", p), err)
+}
+
+func (p *NodeServicePSyncReadyArgs) String() string {
+	if p == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("NodeServicePSyncReadyArgs(%+v)", *p)
+}
+
+func (p *NodeServicePSyncReadyArgs) DeepEqual(ano *NodeServicePSyncReadyArgs) bool {
+	if p == ano {
+		return true
+	} else if p == nil || ano == nil {
+		return false
+	}
+	if !p.Field1DeepEqual(ano.Req) {
+		return false
+	}
+	return true
+}
+
+func (p *NodeServicePSyncReadyArgs) Field1DeepEqual(src *PSyncRequest) bool {
+
+	if !p.Req.DeepEqual(src) {
+		return false
+	}
+	return true
+}
+
+type NodeServicePSyncReadyResult struct {
+	Success *PSyncResponse `thrift:"success,0,optional" frugal:"0,optional,PSyncResponse" json:"success,omitempty"`
+}
+
+func NewNodeServicePSyncReadyResult() *NodeServicePSyncReadyResult {
+	return &NodeServicePSyncReadyResult{}
+}
+
+func (p *NodeServicePSyncReadyResult) InitDefault() {
+	*p = NodeServicePSyncReadyResult{}
+}
+
+var NodeServicePSyncReadyResult_Success_DEFAULT *PSyncResponse
+
+func (p *NodeServicePSyncReadyResult) GetSuccess() (v *PSyncResponse) {
+	if !p.IsSetSuccess() {
+		return NodeServicePSyncReadyResult_Success_DEFAULT
+	}
+	return p.Success
+}
+func (p *NodeServicePSyncReadyResult) SetSuccess(x interface{}) {
+	p.Success = x.(*PSyncResponse)
+}
+
+var fieldIDToName_NodeServicePSyncReadyResult = map[int16]string{
+	0: "success",
+}
+
+func (p *NodeServicePSyncReadyResult) IsSetSuccess() bool {
+	return p.Success != nil
+}
+
+func (p *NodeServicePSyncReadyResult) Read(iprot thrift.TProtocol) (err error) {
+
+	var fieldTypeId thrift.TType
+	var fieldId int16
+
+	if _, err = iprot.ReadStructBegin(); err != nil {
+		goto ReadStructBeginError
+	}
+
+	for {
+		_, fieldTypeId, fieldId, err = iprot.ReadFieldBegin()
+		if err != nil {
+			goto ReadFieldBeginError
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+
+		switch fieldId {
+		case 0:
+			if fieldTypeId == thrift.STRUCT {
+				if err = p.ReadField0(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		default:
+			if err = iprot.Skip(fieldTypeId); err != nil {
+				goto SkipFieldError
+			}
+		}
+
+		if err = iprot.ReadFieldEnd(); err != nil {
+			goto ReadFieldEndError
+		}
+	}
+	if err = iprot.ReadStructEnd(); err != nil {
+		goto ReadStructEndError
+	}
+
+	return nil
+ReadStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct begin error: ", p), err)
+ReadFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
+ReadFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncReadyResult[fieldId]), err)
+SkipFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
+
+ReadFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
+ReadStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *NodeServicePSyncReadyResult) ReadField0(iprot thrift.TProtocol) error {
+	p.Success = NewPSyncResponse()
+	if err := p.Success.Read(iprot); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *NodeServicePSyncReadyResult) Write(oprot thrift.TProtocol) (err error) {
+	var fieldId int16
+	if err = oprot.WriteStructBegin("PSyncReady_result"); err != nil {
+		goto WriteStructBeginError
+	}
+	if p != nil {
+		if err = p.writeField0(oprot); err != nil {
+			fieldId = 0
+			goto WriteFieldError
+		}
+
+	}
+	if err = oprot.WriteFieldStop(); err != nil {
+		goto WriteFieldStopError
+	}
+	if err = oprot.WriteStructEnd(); err != nil {
+		goto WriteStructEndError
+	}
+	return nil
+WriteStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
+WriteFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T write field %d error: ", p, fieldId), err)
+WriteFieldStopError:
+	return thrift.PrependError(fmt.Sprintf("%T write field stop error: ", p), err)
+WriteStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
+}
+
+func (p *NodeServicePSyncReadyResult) writeField0(oprot thrift.TProtocol) (err error) {
+	if p.IsSetSuccess() {
+		if err = oprot.WriteFieldBegin("success", thrift.STRUCT, 0); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := p.Success.Write(oprot); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 0 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 0 end error: ", p), err)
+}
+
+func (p *NodeServicePSyncReadyResult) String() string {
+	if p == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("NodeServicePSyncReadyResult(%+v)", *p)
+}
+
+func (p *NodeServicePSyncReadyResult) DeepEqual(ano *NodeServicePSyncReadyResult) bool {
+	if p == ano {
+		return true
+	} else if p == nil || ano == nil {
+		return false
+	}
+	if !p.Field0DeepEqual(ano.Success) {
+		return false
+	}
+	return true
+}
+
+func (p *NodeServicePSyncReadyResult) Field0DeepEqual(src *PSyncResponse) bool {
 
 	if !p.Success.DeepEqual(src) {
 		return false

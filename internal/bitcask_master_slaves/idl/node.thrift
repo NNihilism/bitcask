@@ -113,6 +113,7 @@ struct ReplFinishNotifyReq {
     1: i8 sync_type
     2: bool ok
     3: i64 master_offset
+    4: i64 last_entry_id    // 供slave在全量复制时校验用
 }
 
 service NodeService {
@@ -123,7 +124,8 @@ service NodeService {
 
     bool ReplFinishNotify(ReplFinishNotifyReq req)
     # bool IncrReplFailNotify(string masterId)    // 增量复制失败时,master用于通知slave增量复制终止
-    PSyncResponse PSync(1: PSyncRequest req)
+    PSyncResponse PSyncReq(1: PSyncRequest req) // slave发起请求
+    PSyncResponse PSyncReady(1: PSyncRequest req)  // slave告知master已经准备好
     LogEntryResponse OpLogEntry(1: LogEntryRequest req)
     PingResponse Ping()
     InfoResponse Info()

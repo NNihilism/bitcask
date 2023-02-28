@@ -54,6 +54,7 @@ var (
 )
 
 type NodeConfig struct {
+	// TODO 添加字段 标识是否要删除原有目录
 	Addr                    string
 	ID                      string
 	MasterId                string

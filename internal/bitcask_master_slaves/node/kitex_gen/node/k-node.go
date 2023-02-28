@@ -2813,6 +2813,20 @@ func (p *ReplFinishNotifyReq) FastRead(buf []byte) (int, error) {
 					goto SkipFieldError
 				}
 			}
+		case 4:
+			if fieldTypeId == thrift.I64 {
+				l, err = p.FastReadField4(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
 		default:
 			l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
 			offset += l
@@ -2890,6 +2904,20 @@ func (p *ReplFinishNotifyReq) FastReadField3(buf []byte) (int, error) {
 	return offset, nil
 }
 
+func (p *ReplFinishNotifyReq) FastReadField4(buf []byte) (int, error) {
+	offset := 0
+
+	if v, l, err := bthrift.Binary.ReadI64(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+
+		p.LastEntryId = v
+
+	}
+	return offset, nil
+}
+
 // for compatibility
 func (p *ReplFinishNotifyReq) FastWrite(buf []byte) int {
 	return 0
@@ -2902,6 +2930,7 @@ func (p *ReplFinishNotifyReq) FastWriteNocopy(buf []byte, binaryWriter bthrift.B
 		offset += p.fastWriteField1(buf[offset:], binaryWriter)
 		offset += p.fastWriteField2(buf[offset:], binaryWriter)
 		offset += p.fastWriteField3(buf[offset:], binaryWriter)
+		offset += p.fastWriteField4(buf[offset:], binaryWriter)
 	}
 	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
 	offset += bthrift.Binary.WriteStructEnd(buf[offset:])
@@ -2915,6 +2944,7 @@ func (p *ReplFinishNotifyReq) BLength() int {
 		l += p.field1Length()
 		l += p.field2Length()
 		l += p.field3Length()
+		l += p.field4Length()
 	}
 	l += bthrift.Binary.FieldStopLength()
 	l += bthrift.Binary.StructEndLength()
@@ -2948,6 +2978,15 @@ func (p *ReplFinishNotifyReq) fastWriteField3(buf []byte, binaryWriter bthrift.B
 	return offset
 }
 
+func (p *ReplFinishNotifyReq) fastWriteField4(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "last_entry_id", thrift.I64, 4)
+	offset += bthrift.Binary.WriteI64(buf[offset:], p.LastEntryId)
+
+	offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	return offset
+}
+
 func (p *ReplFinishNotifyReq) field1Length() int {
 	l := 0
 	l += bthrift.Binary.FieldBeginLength("sync_type", thrift.BYTE, 1)
@@ -2970,6 +3009,15 @@ func (p *ReplFinishNotifyReq) field3Length() int {
 	l := 0
 	l += bthrift.Binary.FieldBeginLength("master_offset", thrift.I64, 3)
 	l += bthrift.Binary.I64Length(p.MasterOffset)
+
+	l += bthrift.Binary.FieldEndLength()
+	return l
+}
+
+func (p *ReplFinishNotifyReq) field4Length() int {
+	l := 0
+	l += bthrift.Binary.FieldBeginLength("last_entry_id", thrift.I64, 4)
+	l += bthrift.Binary.I64Length(p.LastEntryId)
 
 	l += bthrift.Binary.FieldEndLength()
 	return l
@@ -3751,7 +3799,7 @@ func (p *NodeServiceReplFinishNotifyResult) field0Length() int {
 	return l
 }
 
-func (p *NodeServicePSyncArgs) FastRead(buf []byte) (int, error) {
+func (p *NodeServicePSyncReqArgs) FastRead(buf []byte) (int, error) {
 	var err error
 	var offset int
 	var l int
@@ -3813,7 +3861,7 @@ ReadStructBeginError:
 ReadFieldBeginError:
 	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
 ReadFieldError:
-	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncArgs[fieldId]), err)
+	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncReqArgs[fieldId]), err)
 SkipFieldError:
 	return offset, thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
 ReadFieldEndError:
@@ -3822,7 +3870,7 @@ ReadStructEndError:
 	return offset, thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
 }
 
-func (p *NodeServicePSyncArgs) FastReadField1(buf []byte) (int, error) {
+func (p *NodeServicePSyncReqArgs) FastReadField1(buf []byte) (int, error) {
 	offset := 0
 
 	tmp := NewPSyncRequest()
@@ -3836,13 +3884,13 @@ func (p *NodeServicePSyncArgs) FastReadField1(buf []byte) (int, error) {
 }
 
 // for compatibility
-func (p *NodeServicePSyncArgs) FastWrite(buf []byte) int {
+func (p *NodeServicePSyncReqArgs) FastWrite(buf []byte) int {
 	return 0
 }
 
-func (p *NodeServicePSyncArgs) FastWriteNocopy(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+func (p *NodeServicePSyncReqArgs) FastWriteNocopy(buf []byte, binaryWriter bthrift.BinaryWriter) int {
 	offset := 0
-	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "PSync_args")
+	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "PSyncReq_args")
 	if p != nil {
 		offset += p.fastWriteField1(buf[offset:], binaryWriter)
 	}
@@ -3851,9 +3899,9 @@ func (p *NodeServicePSyncArgs) FastWriteNocopy(buf []byte, binaryWriter bthrift.
 	return offset
 }
 
-func (p *NodeServicePSyncArgs) BLength() int {
+func (p *NodeServicePSyncReqArgs) BLength() int {
 	l := 0
-	l += bthrift.Binary.StructBeginLength("PSync_args")
+	l += bthrift.Binary.StructBeginLength("PSyncReq_args")
 	if p != nil {
 		l += p.field1Length()
 	}
@@ -3862,7 +3910,7 @@ func (p *NodeServicePSyncArgs) BLength() int {
 	return l
 }
 
-func (p *NodeServicePSyncArgs) fastWriteField1(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+func (p *NodeServicePSyncReqArgs) fastWriteField1(buf []byte, binaryWriter bthrift.BinaryWriter) int {
 	offset := 0
 	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "req", thrift.STRUCT, 1)
 	offset += p.Req.FastWriteNocopy(buf[offset:], binaryWriter)
@@ -3870,7 +3918,7 @@ func (p *NodeServicePSyncArgs) fastWriteField1(buf []byte, binaryWriter bthrift.
 	return offset
 }
 
-func (p *NodeServicePSyncArgs) field1Length() int {
+func (p *NodeServicePSyncReqArgs) field1Length() int {
 	l := 0
 	l += bthrift.Binary.FieldBeginLength("req", thrift.STRUCT, 1)
 	l += p.Req.BLength()
@@ -3878,7 +3926,7 @@ func (p *NodeServicePSyncArgs) field1Length() int {
 	return l
 }
 
-func (p *NodeServicePSyncResult) FastRead(buf []byte) (int, error) {
+func (p *NodeServicePSyncReqResult) FastRead(buf []byte) (int, error) {
 	var err error
 	var offset int
 	var l int
@@ -3940,7 +3988,7 @@ ReadStructBeginError:
 ReadFieldBeginError:
 	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
 ReadFieldError:
-	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncResult[fieldId]), err)
+	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncReqResult[fieldId]), err)
 SkipFieldError:
 	return offset, thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
 ReadFieldEndError:
@@ -3949,7 +3997,7 @@ ReadStructEndError:
 	return offset, thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
 }
 
-func (p *NodeServicePSyncResult) FastReadField0(buf []byte) (int, error) {
+func (p *NodeServicePSyncReqResult) FastReadField0(buf []byte) (int, error) {
 	offset := 0
 
 	tmp := NewPSyncResponse()
@@ -3963,13 +4011,13 @@ func (p *NodeServicePSyncResult) FastReadField0(buf []byte) (int, error) {
 }
 
 // for compatibility
-func (p *NodeServicePSyncResult) FastWrite(buf []byte) int {
+func (p *NodeServicePSyncReqResult) FastWrite(buf []byte) int {
 	return 0
 }
 
-func (p *NodeServicePSyncResult) FastWriteNocopy(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+func (p *NodeServicePSyncReqResult) FastWriteNocopy(buf []byte, binaryWriter bthrift.BinaryWriter) int {
 	offset := 0
-	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "PSync_result")
+	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "PSyncReq_result")
 	if p != nil {
 		offset += p.fastWriteField0(buf[offset:], binaryWriter)
 	}
@@ -3978,9 +4026,9 @@ func (p *NodeServicePSyncResult) FastWriteNocopy(buf []byte, binaryWriter bthrif
 	return offset
 }
 
-func (p *NodeServicePSyncResult) BLength() int {
+func (p *NodeServicePSyncReqResult) BLength() int {
 	l := 0
-	l += bthrift.Binary.StructBeginLength("PSync_result")
+	l += bthrift.Binary.StructBeginLength("PSyncReq_result")
 	if p != nil {
 		l += p.field0Length()
 	}
@@ -3989,7 +4037,7 @@ func (p *NodeServicePSyncResult) BLength() int {
 	return l
 }
 
-func (p *NodeServicePSyncResult) fastWriteField0(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+func (p *NodeServicePSyncReqResult) fastWriteField0(buf []byte, binaryWriter bthrift.BinaryWriter) int {
 	offset := 0
 	if p.IsSetSuccess() {
 		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "success", thrift.STRUCT, 0)
@@ -3999,7 +4047,265 @@ func (p *NodeServicePSyncResult) fastWriteField0(buf []byte, binaryWriter bthrif
 	return offset
 }
 
-func (p *NodeServicePSyncResult) field0Length() int {
+func (p *NodeServicePSyncReqResult) field0Length() int {
+	l := 0
+	if p.IsSetSuccess() {
+		l += bthrift.Binary.FieldBeginLength("success", thrift.STRUCT, 0)
+		l += p.Success.BLength()
+		l += bthrift.Binary.FieldEndLength()
+	}
+	return l
+}
+
+func (p *NodeServicePSyncReadyArgs) FastRead(buf []byte) (int, error) {
+	var err error
+	var offset int
+	var l int
+	var fieldTypeId thrift.TType
+	var fieldId int16
+	_, l, err = bthrift.Binary.ReadStructBegin(buf)
+	offset += l
+	if err != nil {
+		goto ReadStructBeginError
+	}
+
+	for {
+		_, fieldTypeId, fieldId, l, err = bthrift.Binary.ReadFieldBegin(buf[offset:])
+		offset += l
+		if err != nil {
+			goto ReadFieldBeginError
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+		switch fieldId {
+		case 1:
+			if fieldTypeId == thrift.STRUCT {
+				l, err = p.FastReadField1(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
+		default:
+			l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+			offset += l
+			if err != nil {
+				goto SkipFieldError
+			}
+		}
+
+		l, err = bthrift.Binary.ReadFieldEnd(buf[offset:])
+		offset += l
+		if err != nil {
+			goto ReadFieldEndError
+		}
+	}
+	l, err = bthrift.Binary.ReadStructEnd(buf[offset:])
+	offset += l
+	if err != nil {
+		goto ReadStructEndError
+	}
+
+	return offset, nil
+ReadStructBeginError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read struct begin error: ", p), err)
+ReadFieldBeginError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
+ReadFieldError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncReadyArgs[fieldId]), err)
+SkipFieldError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
+ReadFieldEndError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
+ReadStructEndError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *NodeServicePSyncReadyArgs) FastReadField1(buf []byte) (int, error) {
+	offset := 0
+
+	tmp := NewPSyncRequest()
+	if l, err := tmp.FastRead(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+	}
+	p.Req = tmp
+	return offset, nil
+}
+
+// for compatibility
+func (p *NodeServicePSyncReadyArgs) FastWrite(buf []byte) int {
+	return 0
+}
+
+func (p *NodeServicePSyncReadyArgs) FastWriteNocopy(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "PSyncReady_args")
+	if p != nil {
+		offset += p.fastWriteField1(buf[offset:], binaryWriter)
+	}
+	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
+	offset += bthrift.Binary.WriteStructEnd(buf[offset:])
+	return offset
+}
+
+func (p *NodeServicePSyncReadyArgs) BLength() int {
+	l := 0
+	l += bthrift.Binary.StructBeginLength("PSyncReady_args")
+	if p != nil {
+		l += p.field1Length()
+	}
+	l += bthrift.Binary.FieldStopLength()
+	l += bthrift.Binary.StructEndLength()
+	return l
+}
+
+func (p *NodeServicePSyncReadyArgs) fastWriteField1(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "req", thrift.STRUCT, 1)
+	offset += p.Req.FastWriteNocopy(buf[offset:], binaryWriter)
+	offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	return offset
+}
+
+func (p *NodeServicePSyncReadyArgs) field1Length() int {
+	l := 0
+	l += bthrift.Binary.FieldBeginLength("req", thrift.STRUCT, 1)
+	l += p.Req.BLength()
+	l += bthrift.Binary.FieldEndLength()
+	return l
+}
+
+func (p *NodeServicePSyncReadyResult) FastRead(buf []byte) (int, error) {
+	var err error
+	var offset int
+	var l int
+	var fieldTypeId thrift.TType
+	var fieldId int16
+	_, l, err = bthrift.Binary.ReadStructBegin(buf)
+	offset += l
+	if err != nil {
+		goto ReadStructBeginError
+	}
+
+	for {
+		_, fieldTypeId, fieldId, l, err = bthrift.Binary.ReadFieldBegin(buf[offset:])
+		offset += l
+		if err != nil {
+			goto ReadFieldBeginError
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+		switch fieldId {
+		case 0:
+			if fieldTypeId == thrift.STRUCT {
+				l, err = p.FastReadField0(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
+		default:
+			l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+			offset += l
+			if err != nil {
+				goto SkipFieldError
+			}
+		}
+
+		l, err = bthrift.Binary.ReadFieldEnd(buf[offset:])
+		offset += l
+		if err != nil {
+			goto ReadFieldEndError
+		}
+	}
+	l, err = bthrift.Binary.ReadStructEnd(buf[offset:])
+	offset += l
+	if err != nil {
+		goto ReadStructEndError
+	}
+
+	return offset, nil
+ReadStructBeginError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read struct begin error: ", p), err)
+ReadFieldBeginError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
+ReadFieldError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServicePSyncReadyResult[fieldId]), err)
+SkipFieldError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
+ReadFieldEndError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
+ReadStructEndError:
+	return offset, thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *NodeServicePSyncReadyResult) FastReadField0(buf []byte) (int, error) {
+	offset := 0
+
+	tmp := NewPSyncResponse()
+	if l, err := tmp.FastRead(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+	}
+	p.Success = tmp
+	return offset, nil
+}
+
+// for compatibility
+func (p *NodeServicePSyncReadyResult) FastWrite(buf []byte) int {
+	return 0
+}
+
+func (p *NodeServicePSyncReadyResult) FastWriteNocopy(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "PSyncReady_result")
+	if p != nil {
+		offset += p.fastWriteField0(buf[offset:], binaryWriter)
+	}
+	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
+	offset += bthrift.Binary.WriteStructEnd(buf[offset:])
+	return offset
+}
+
+func (p *NodeServicePSyncReadyResult) BLength() int {
+	l := 0
+	l += bthrift.Binary.StructBeginLength("PSyncReady_result")
+	if p != nil {
+		l += p.field0Length()
+	}
+	l += bthrift.Binary.FieldStopLength()
+	l += bthrift.Binary.StructEndLength()
+	return l
+}
+
+func (p *NodeServicePSyncReadyResult) fastWriteField0(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	if p.IsSetSuccess() {
+		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "success", thrift.STRUCT, 0)
+		offset += p.Success.FastWriteNocopy(buf[offset:], binaryWriter)
+		offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	}
+	return offset
+}
+
+func (p *NodeServicePSyncReadyResult) field0Length() int {
 	l := 0
 	if p.IsSetSuccess() {
 		l += bthrift.Binary.FieldBeginLength("success", thrift.STRUCT, 0)
@@ -4709,11 +5015,19 @@ func (p *NodeServiceReplFinishNotifyResult) GetResult() interface{} {
 	return p.Success
 }
 
-func (p *NodeServicePSyncArgs) GetFirstArgument() interface{} {
+func (p *NodeServicePSyncReqArgs) GetFirstArgument() interface{} {
 	return p.Req
 }
 
-func (p *NodeServicePSyncResult) GetResult() interface{} {
+func (p *NodeServicePSyncReqResult) GetResult() interface{} {
+	return p.Success
+}
+
+func (p *NodeServicePSyncReadyArgs) GetFirstArgument() interface{} {
+	return p.Req
+}
+
+func (p *NodeServicePSyncReadyResult) GetResult() interface{} {
 	return p.Success
 }
 

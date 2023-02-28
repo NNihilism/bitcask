@@ -14,7 +14,8 @@ type Client interface {
 	SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest, callOptions ...callopt.Option) (r *node.SendSlaveofResponse, err error)
 	RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest, callOptions ...callopt.Option) (r *node.RegisterSlaveResponse, err error)
 	ReplFinishNotify(ctx context.Context, req *node.ReplFinishNotifyReq, callOptions ...callopt.Option) (r bool, err error)
-	PSync(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error)
+	PSyncReq(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error)
+	PSyncReady(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error)
 	OpLogEntry(ctx context.Context, req *node.LogEntryRequest, callOptions ...callopt.Option) (r *node.LogEntryResponse, err error)
 	Ping(ctx context.Context, callOptions ...callopt.Option) (r *node.PingResponse, err error)
 	Info(ctx context.Context, callOptions ...callopt.Option) (r *node.InfoResponse, err error)
@@ -64,9 +65,14 @@ func (p *kNodeServiceClient) ReplFinishNotify(ctx context.Context, req *node.Rep
 	return p.kClient.ReplFinishNotify(ctx, req)
 }
 
-func (p *kNodeServiceClient) PSync(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error) {
+func (p *kNodeServiceClient) PSyncReq(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.PSync(ctx, req)
+	return p.kClient.PSyncReq(ctx, req)
+}
+
+func (p *kNodeServiceClient) PSyncReady(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.PSyncReady(ctx, req)
 }
 
 func (p *kNodeServiceClient) OpLogEntry(ctx context.Context, req *node.LogEntryRequest, callOptions ...callopt.Option) (r *node.LogEntryResponse, err error) {

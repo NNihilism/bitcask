@@ -22,7 +22,8 @@ func NewServiceInfo() *kitex.ServiceInfo {
 		"SendSlaveof":      kitex.NewMethodInfo(sendSlaveofHandler, newNodeServiceSendSlaveofArgs, newNodeServiceSendSlaveofResult, false),
 		"RegisterSlave":    kitex.NewMethodInfo(registerSlaveHandler, newNodeServiceRegisterSlaveArgs, newNodeServiceRegisterSlaveResult, false),
 		"ReplFinishNotify": kitex.NewMethodInfo(replFinishNotifyHandler, newNodeServiceReplFinishNotifyArgs, newNodeServiceReplFinishNotifyResult, false),
-		"PSync":            kitex.NewMethodInfo(pSyncHandler, newNodeServicePSyncArgs, newNodeServicePSyncResult, false),
+		"PSyncReq":         kitex.NewMethodInfo(pSyncReqHandler, newNodeServicePSyncReqArgs, newNodeServicePSyncReqResult, false),
+		"PSyncReady":       kitex.NewMethodInfo(pSyncReadyHandler, newNodeServicePSyncReadyArgs, newNodeServicePSyncReadyResult, false),
 		"OpLogEntry":       kitex.NewMethodInfo(opLogEntryHandler, newNodeServiceOpLogEntryArgs, newNodeServiceOpLogEntryResult, false),
 		"Ping":             kitex.NewMethodInfo(pingHandler, newNodeServicePingArgs, newNodeServicePingResult, false),
 		"Info":             kitex.NewMethodInfo(infoHandler, newNodeServiceInfoArgs, newNodeServiceInfoResult, false),
@@ -95,22 +96,40 @@ func newNodeServiceReplFinishNotifyResult() interface{} {
 	return node.NewNodeServiceReplFinishNotifyResult()
 }
 
-func pSyncHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
-	realArg := arg.(*node.NodeServicePSyncArgs)
-	realResult := result.(*node.NodeServicePSyncResult)
-	success, err := handler.(node.NodeService).PSync(ctx, realArg.Req)
+func pSyncReqHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*node.NodeServicePSyncReqArgs)
+	realResult := result.(*node.NodeServicePSyncReqResult)
+	success, err := handler.(node.NodeService).PSyncReq(ctx, realArg.Req)
 	if err != nil {
 		return err
 	}
 	realResult.Success = success
 	return nil
 }
-func newNodeServicePSyncArgs() interface{} {
-	return node.NewNodeServicePSyncArgs()
+func newNodeServicePSyncReqArgs() interface{} {
+	return node.NewNodeServicePSyncReqArgs()
 }
 
-func newNodeServicePSyncResult() interface{} {
-	return node.NewNodeServicePSyncResult()
+func newNodeServicePSyncReqResult() interface{} {
+	return node.NewNodeServicePSyncReqResult()
+}
+
+func pSyncReadyHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*node.NodeServicePSyncReadyArgs)
+	realResult := result.(*node.NodeServicePSyncReadyResult)
+	success, err := handler.(node.NodeService).PSyncReady(ctx, realArg.Req)
+	if err != nil {
+		return err
+	}
+	realResult.Success = success
+	return nil
+}
+func newNodeServicePSyncReadyArgs() interface{} {
+	return node.NewNodeServicePSyncReadyArgs()
+}
+
+func newNodeServicePSyncReadyResult() interface{} {
+	return node.NewNodeServicePSyncReadyResult()
 }
 
 func opLogEntryHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
@@ -207,11 +226,21 @@ func (p *kClient) ReplFinishNotify(ctx context.Context, req *node.ReplFinishNoti
 	return _result.GetSuccess(), nil
 }
 
-func (p *kClient) PSync(ctx context.Context, req *node.PSyncRequest) (r *node.PSyncResponse, err error) {
-	var _args node.NodeServicePSyncArgs
+func (p *kClient) PSyncReq(ctx context.Context, req *node.PSyncRequest) (r *node.PSyncResponse, err error) {
+	var _args node.NodeServicePSyncReqArgs
 	_args.Req = req
-	var _result node.NodeServicePSyncResult
-	if err = p.c.Call(ctx, "PSync", &_args, &_result); err != nil {
+	var _result node.NodeServicePSyncReqResult
+	if err = p.c.Call(ctx, "PSyncReq", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) PSyncReady(ctx context.Context, req *node.PSyncRequest) (r *node.PSyncResponse, err error) {
+	var _args node.NodeServicePSyncReadyArgs
+	_args.Req = req
+	var _result node.NodeServicePSyncReadyResult
+	if err = p.c.Call(ctx, "PSyncReady", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

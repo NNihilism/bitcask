@@ -56,11 +56,11 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 	bitcaskNode.slavesRpc.Store(req.RunId, c)
 
 	// 2. 修改变量
+	bitcaskNode.slavesStatus.Store(req.RunId, nodeInIdle)
 	bitcaskNode.cf.ConnectedSlaves += 1
 	// if len(bitcaskNode.slavesStatus) == 0 {
 	// bitcaskNode.slavesStatus = make(map[string]nodeSynctatusCode)
 	// }
-	bitcaskNode.slavesStatus.Store(req.RunId, nodeInIdle)
 	// bitcaskNode.slavesStatus[req.RunId] = nodeInIdle
 	// 返回结果
 	return &node.RegisterSlaveResponse{
@@ -110,7 +110,7 @@ func (bitcaskNode *BitcaskNode) AddCache(req *node.LogEntryRequest) {
 	bitcaskNode.cacheMu.Lock()
 	defer bitcaskNode.cacheMu.Unlock()
 
-	log.Info("添加缓存[%v]", req)
+	// log.Info("添加缓存[%v]", req)
 	bitcaskNode.opCache.Add(fmt.Sprintf("%d", req.EntryId), &cacheItem{req: req})
 }
 

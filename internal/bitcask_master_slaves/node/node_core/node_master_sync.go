@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 )
 
 // 异步更新
@@ -77,10 +78,16 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 // 全量复制
 func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	defer func() {
-		if _, ok := bitcaskNode.getSlaveStatus(slaveId); ok {
-			bitcaskNode.slavesStatus.Store(slaveId, nodeInIdle)
-		}
+		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 	}()
+
+	// 数据解析与数据发送可以并发执行
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	syncChan := make(chan syncChanItem, config.SyncChanSize)
+	go bitcaskNode.SyncLogEntryToSlave(wg, syncChan)
+
+	var tmp_entry_id int64 = 1 // 供slave校验用,记录发送的记录个数是否正确
 
 	// 发送所有string类型的数据
 	keys, err := bitcaskNode.db.GetStrsKeys()
@@ -93,8 +100,9 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 		if err != nil {
 			log.Errorf("db.Get err [%v]", err)
 		}
-		req := packLogEntryRequest("string", [][]byte{key, value})
-		bitcaskNode.syncChan <- syncChanItem{
+		req := packLogEntryRequest("string", [][]byte{key, value}, bitcaskNode.cf.ID, tmp_entry_id)
+		tmp_entry_id += 1
+		syncChan <- syncChanItem{
 			req:     req,
 			slaveId: slaveId,
 		}
@@ -111,8 +119,9 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 		if err != nil {
 			log.Errorf("db.LRange err [%v]", err)
 		}
-		req := packLogEntryRequest("list", append([][]byte{key}, values...))
-		bitcaskNode.syncChan <- syncChanItem{
+		req := packLogEntryRequest("list", append([][]byte{key}, values...), bitcaskNode.cf.ID, tmp_entry_id)
+		tmp_entry_id += 1
+		syncChan <- syncChanItem{
 			req:     req,
 			slaveId: slaveId,
 		}
@@ -129,8 +138,10 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 		if err != nil {
 			log.Errorf("db.LRange err [%v]", err)
 		}
-		req := packLogEntryRequest("hash", append([][]byte{key}, values...))
-		bitcaskNode.syncChan <- syncChanItem{
+		req := packLogEntryRequest("hash", append([][]byte{key}, values...), bitcaskNode.cf.ID, tmp_entry_id)
+		tmp_entry_id += 1
+
+		syncChan <- syncChanItem{
 			req:     req,
 			slaveId: slaveId,
 		}
@@ -147,8 +158,9 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 		if err != nil {
 			log.Errorf("db.LRange err [%v]", err)
 		}
-		req := packLogEntryRequest("set", append([][]byte{key}, values...))
-		bitcaskNode.syncChan <- syncChanItem{
+		req := packLogEntryRequest("set", append([][]byte{key}, values...), bitcaskNode.cf.ID, tmp_entry_id)
+		tmp_entry_id += 1
+		syncChan <- syncChanItem{
 			req:     req,
 			slaveId: slaveId,
 		}
@@ -156,7 +168,6 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 
 	// 发送所有zset类型的数据
 	keys = bitcaskNode.db.ZKeys()
-
 	for _, key := range keys {
 		members := bitcaskNode.db.ZMembers(key)
 		for _, member := range members {
@@ -165,8 +176,9 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 				log.Errorf("unexist key:%s, member:%s", key, member)
 				continue
 			}
-			req := packLogEntryRequest("zset", [][]byte{key, []byte(fmt.Sprintf("%f", score)), member})
-			bitcaskNode.syncChan <- syncChanItem{
+			req := packLogEntryRequest("zset", [][]byte{key, []byte(fmt.Sprintf("%f", score)), member}, bitcaskNode.cf.ID, tmp_entry_id)
+			tmp_entry_id += 1
+			syncChan <- syncChanItem{
 				req:     req,
 				slaveId: slaveId,
 			}
@@ -178,19 +190,23 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	if !ok {
 		return
 	}
+	log.Info("server finish sending all req to channel")
+	wg.Wait() // 等待数据都发送完了再通知 不然slave可能先收到结束通知导致不接收尚未发送完的数据
 	ok, err = rpc.ReplFinishNotify(context.Background(), &node.ReplFinishNotifyReq{
 		Ok:           true,
 		SyncType:     int8(config.FullReplSync),
+		LastEntryId:  tmp_entry_id - 1, // 供slave校验用
 		MasterOffset: int64(bitcaskNode.cf.CurReplicationOffset),
 	})
 	// err或者不ok 都移除该异常节点
 	if err != nil || !ok {
+		log.Info("remove slave [%s], [err != nil : %v], [ok : %v]", slaveId, err != nil, ok)
 		bitcaskNode.RemoveSlave(slaveId)
 	}
 
 }
 
-func packLogEntryRequest(datatype string, value [][]byte) *node.LogEntryRequest {
+func packLogEntryRequest(datatype string, value [][]byte, masterId string, entryId int64) *node.LogEntryRequest {
 	var cmd string
 	switch datatype {
 	case "string":
@@ -207,29 +223,38 @@ func packLogEntryRequest(datatype string, value [][]byte) *node.LogEntryRequest 
 	args := util.BytesArrToStrArr(value)
 
 	return &node.LogEntryRequest{
-		Cmd:   cmd,
-		Args_: args,
+		EntryId:  entryId,
+		Cmd:      cmd,
+		Args_:    args,
+		MasterId: masterId,
 	}
 }
 
 // 发送写命令给指定的slave
-func (bitcaskNode *BitcaskNode) SyncLogEntryToSlave(ctx context.Context) {
+// 异步开启此方法,一边解析一边发送
+func (bitcaskNode *BitcaskNode) SyncLogEntryToSlave(wg *sync.WaitGroup, syncChan chan syncChanItem) {
+	defer wg.Done()
+
 	for {
 		select {
-		case reqPack := <-bitcaskNode.syncChan:
-			log.Info("读取到reqPack : [%v]", reqPack)
+		case reqPack, ok := <-syncChan:
+			if !ok {
+				return
+			}
+			log.Info("读取reqPack. req : [%v], id : [%v]", reqPack.req, reqPack.slaveId)
 			req := reqPack.req
 			id := reqPack.slaveId
 
 			if rpc, ok := bitcaskNode.getSlaveRPC(id); ok {
+				log.Infof("发送 OpLogEntry请求 : [%d]", time.Now().Unix())
 				rpc.OpLogEntry(context.TODO(), req)
 			}
 
 			// if rpc, ok := bitcaskNode.slavesRpc[id]; ok {
 			// TODO 发送失败,又该如何通知
 			// }
-		case <-ctx.Done():
-			return
+			// case <-ctx.Done():
+			// 	return
 		}
 	}
 }
@@ -279,6 +304,7 @@ func (bitcaskNode *BitcaskNode) IncreReplication(slaveId string, offset int64) {
 			return
 		}
 		req := iCacheItem.req
+		req.MasterId = bitcaskNode.cf.ID
 		log.Infof("发送数据[%v]进行增量复制\n", req)
 
 		resp, err := slaveRpc.OpLogEntry(context.Background(), req)
@@ -310,29 +336,38 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 	// 如果缓存中能找到slave节点想要的偏移量， 则增量复制
 	// TODO !ok改为ok,现在为了测试全量复制所以使用!ok
 	if _, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", slave_repl_offset+1)); !ok {
-		// go 增量复制
 		// 避免重复创建协程进行数据同步
 		if status, ok := bitcaskNode.getSlaveStatus(req.SlaveId); !ok || status == nodeInIncrRepl {
 			resp.Code = int8(config.Fail)
 			return resp, nil
 		}
 		bitcaskNode.changeSlaveSyncStatus(req.SlaveId, nodeInIncrRepl)
-		go bitcaskNode.IncreReplication(req.SlaveId, slave_repl_offset)
+		go bitcaskNode.IncreReplication(req.SlaveId, slave_repl_offset) // 这玩意可能发送的太快了,slave没准备好
 		resp.Code = int8(config.IncreReplSync)
 	} else {
-		// go 全量复制
 		// 避免重复创建协程进行数据同步
+		// TODO 感觉仍然有并发问题?比如两个协程都判断到此时非Full,然后都进入到changeSlave,并开启协程. 解决方法:
 		if status, ok := bitcaskNode.getSlaveStatus(req.SlaveId); !ok || status == nodeInFullRepl {
 			resp.Code = int8(config.Fail)
 			return resp, nil
 		}
 		bitcaskNode.changeSlaveSyncStatus(req.SlaveId, nodeInFullRepl)
-		go bitcaskNode.FullReplication(req.SlaveId)
+
+		// 全量复制与增量复制不同,此时不着急go一个FullReplication(),需要等slave准备好再来
 		resp.Code = int8(config.FullReplSync)
 	}
 	return resp, nil
 }
 
+// 只有请求全量复制的slave才会发送这个PSyncReady请求
+func (bitcaskNode *BitcaskNode) HandlePSyncReady(req *node.PSyncRequest) (*node.PSyncResponse, error) {
+
+	resp := new(node.PSyncResponse)
+	go bitcaskNode.FullReplication(req.SlaveId)
+
+	return resp, nil
+
+}
 func (bitcaskNode *BitcaskNode) FlushOpReqBuffer() {
 	// TODO 用于将缓冲区内容刷新
 }

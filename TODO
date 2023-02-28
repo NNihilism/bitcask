@@ -1,0 +1,4 @@
+1. logentryid 统一
+2. 如何知道slave准备好接受增量复制?(slave->master 请求复制, master->slave 告知复制类型, slave->master 告知做好准备, master->slave 开始发送数据
+3. 增量复制时,如果有新的写操作怎么办
+4. Q:全量复制时,如何保证没有遗漏? A:序列号递增 + 最后确认

@@ -79,7 +79,6 @@ func ByteSliceToLogEntryArr(vi interface{}) []*node.LogEntry {
 	if l == 0 { // empty slice
 		return res
 	}
-	fmt.Println("vi:", vi)
 	if v.Index(0).Kind() == reflect.Uint8 {
 		// []byte
 		val, ok := vi.([]byte)

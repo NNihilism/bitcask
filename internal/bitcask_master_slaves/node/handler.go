@@ -44,12 +44,22 @@ func (s *NodeServiceImpl) OpLogEntry(ctx context.Context, req *node.LogEntryRequ
 	return bitcaskNode.HandleOpLogEntryRequest(req)
 }
 
-// IncrReplFailNotify implements the NodeServiceImpl interface.
-func (s *NodeServiceImpl) IncrReplFailNotify(ctx context.Context, masterId string) (resp bool, err error) {
-	return bitcaskNode.HandleRepFailNotify(masterId)
-}
+// // IncrReplFailNotify implements the NodeServiceImpl interface.
+// func (s *NodeServiceImpl) IncrReplFailNotify(ctx context.Context, masterId string) (resp bool, err error) {
+// 	return bitcaskNode.HandleRepFailNotify(masterId)
+// }
 
 // ReplFinishNotify implements the NodeServiceImpl interface.
 func (s *NodeServiceImpl) ReplFinishNotify(ctx context.Context, req *node.ReplFinishNotifyReq) (resp bool, err error) {
 	return bitcaskNode.HandleReplFinishNotify(req)
+}
+
+// PSyncReq implements the NodeServiceImpl interface.
+func (s *NodeServiceImpl) PSyncReq(ctx context.Context, req *node.PSyncRequest) (resp *node.PSyncResponse, err error) {
+	return bitcaskNode.HandlePSyncReq(req)
+}
+
+// PSyncReady implements the NodeServiceImpl interface.
+func (s *NodeServiceImpl) PSyncReady(ctx context.Context, req *node.PSyncRequest) (resp *node.PSyncResponse, err error) {
+	return bitcaskNode.HandlePSyncReady(req)
 }

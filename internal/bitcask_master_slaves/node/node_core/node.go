@@ -38,7 +38,7 @@ type BitcaskNode struct {
 
 	// role == master : syncStatus为nodeInFullRepl时,所有写命令需要放置缓冲区,待syncStatus为Incr或者Idle时才将缓冲区内容写入
 	syncStatus nodeSynctatusCode // 对于Master节点,这个变量可以用来快速判断是否正在与某个slave进行全量复制,对于slave节点,这个变量用于判断目前自身所处状态
-	syncChan   chan syncChanItem
+	// syncChan   chan syncChanItem
 
 	Ctx    context.Context
 	cancel context.CancelFunc
@@ -60,9 +60,9 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
 		cacheMu:    new(sync.Mutex),
 		opCache:    lru.New(51200, nil),
 		syncStatus: nodeInIdle,
-		syncChan:   make(chan syncChanItem, config.SyncChanSize),
-		Ctx:        ctx,
-		cancel:     cancelFunc,
+		// syncChan:   make(chan syncChanItem, config.SyncChanSize),
+		Ctx:    ctx,
+		cancel: cancelFunc,
 	}
 
 	return node, nil
@@ -70,4 +70,11 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
 
 func (node *BitcaskNode) GetConfig() *config.NodeConfig {
 	return node.cf
+}
+
+func (node *BitcaskNode) resetReplication() {
+	// 重置 包括清空数据库数据以及相关offset
+	// TODO 可以根据role进行不同程度的reset?
+	node.cf.CurReplicationOffset = 0
+	// node.db = NewBitcaskNode
 }

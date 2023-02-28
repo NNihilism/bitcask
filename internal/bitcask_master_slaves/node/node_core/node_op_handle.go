@@ -160,7 +160,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 	}
 
 	// 非Master节点在从节点上进行写操作
-	if req.EntryId == 0 && bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
+	if req.MasterId == "" && bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
 		return &node.LogEntryResponse{
 			BaseResp: &node.BaseResp{
 				StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),
@@ -170,10 +170,14 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		}, nil
 	}
 
+	log.Infof("receive opReq : [%v]", req)
+
 	// 从节点收到了Master发来的写操作
 	if bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
 		// 如果处于syncbusy状态，表明正在进行全量复制，此时无视序列号，直接写入
 		// 如果不是syncbush状态，则可能正在进行增量复制或者状态正常，则需要判断序列号，不合法则返回
+		// log.Infof("syncStatus == nodeInFulllRepl", bitcaskNode.syncStatus == nodeInFullRepl)
+		// log.Infof("status : ", bitcaskNode.syncStatus)
 		if bitcaskNode.syncStatus != nodeInFullRepl && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 {
 			// 更新已知最大进度
 			if bitcaskNode.cf.MasterReplicationOffset < int(req.EntryId) {
@@ -185,6 +189,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		}
 	}
 
+	log.Infof("ready to op...")
 	// 执行对应的操作
 	rpcResp := &node.LogEntryResponse{}
 	// TODO 如果为Master且正在执行全量复制,则需要将结果放置缓冲区,先不执行
@@ -219,6 +224,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		bitcaskNode.cf.MasterReplicationOffset += 1
 		bitcaskNode.saveMasterConfig()
 		req.EntryId = int64(bitcaskNode.cf.CurReplicationOffset)
+		req.MasterId = bitcaskNode.cf.ID
 		bitcaskNode.AddCache(req)
 	}
 
