@@ -3491,8 +3491,9 @@ func (p *InfoResponse) Field4DeepEqual(src int64) bool {
 }
 
 type ReplFinishNotifyReq struct {
-	SyncType int8 `thrift:"sync_type,1" frugal:"1,default,i8" json:"sync_type"`
-	Ok       bool `thrift:"ok,2" frugal:"2,default,bool" json:"ok"`
+	SyncType     int8  `thrift:"sync_type,1" frugal:"1,default,i8" json:"sync_type"`
+	Ok           bool  `thrift:"ok,2" frugal:"2,default,bool" json:"ok"`
+	MasterOffset int64 `thrift:"master_offset,3" frugal:"3,default,i64" json:"master_offset"`
 }
 
 func NewReplFinishNotifyReq() *ReplFinishNotifyReq {
@@ -3510,16 +3511,24 @@ func (p *ReplFinishNotifyReq) GetSyncType() (v int8) {
 func (p *ReplFinishNotifyReq) GetOk() (v bool) {
 	return p.Ok
 }
+
+func (p *ReplFinishNotifyReq) GetMasterOffset() (v int64) {
+	return p.MasterOffset
+}
 func (p *ReplFinishNotifyReq) SetSyncType(val int8) {
 	p.SyncType = val
 }
 func (p *ReplFinishNotifyReq) SetOk(val bool) {
 	p.Ok = val
 }
+func (p *ReplFinishNotifyReq) SetMasterOffset(val int64) {
+	p.MasterOffset = val
+}
 
 var fieldIDToName_ReplFinishNotifyReq = map[int16]string{
 	1: "sync_type",
 	2: "ok",
+	3: "master_offset",
 }
 
 func (p *ReplFinishNotifyReq) Read(iprot thrift.TProtocol) (err error) {
@@ -3554,6 +3563,16 @@ func (p *ReplFinishNotifyReq) Read(iprot thrift.TProtocol) (err error) {
 		case 2:
 			if fieldTypeId == thrift.BOOL {
 				if err = p.ReadField2(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 3:
+			if fieldTypeId == thrift.I64 {
+				if err = p.ReadField3(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -3609,6 +3628,15 @@ func (p *ReplFinishNotifyReq) ReadField2(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *ReplFinishNotifyReq) ReadField3(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadI64(); err != nil {
+		return err
+	} else {
+		p.MasterOffset = v
+	}
+	return nil
+}
+
 func (p *ReplFinishNotifyReq) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin("ReplFinishNotifyReq"); err != nil {
@@ -3621,6 +3649,10 @@ func (p *ReplFinishNotifyReq) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField2(oprot); err != nil {
 			fieldId = 2
+			goto WriteFieldError
+		}
+		if err = p.writeField3(oprot); err != nil {
+			fieldId = 3
 			goto WriteFieldError
 		}
 
@@ -3676,6 +3708,23 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 2 end error: ", p), err)
 }
 
+func (p *ReplFinishNotifyReq) writeField3(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("master_offset", thrift.I64, 3); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteI64(p.MasterOffset); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 3 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
+}
+
 func (p *ReplFinishNotifyReq) String() string {
 	if p == nil {
 		return "<nil>"
@@ -3695,6 +3744,9 @@ func (p *ReplFinishNotifyReq) DeepEqual(ano *ReplFinishNotifyReq) bool {
 	if !p.Field2DeepEqual(ano.Ok) {
 		return false
 	}
+	if !p.Field3DeepEqual(ano.MasterOffset) {
+		return false
+	}
 	return true
 }
 
@@ -3708,6 +3760,13 @@ func (p *ReplFinishNotifyReq) Field1DeepEqual(src int8) bool {
 func (p *ReplFinishNotifyReq) Field2DeepEqual(src bool) bool {
 
 	if p.Ok != src {
+		return false
+	}
+	return true
+}
+func (p *ReplFinishNotifyReq) Field3DeepEqual(src int64) bool {
+
+	if p.MasterOffset != src {
 		return false
 	}
 	return true

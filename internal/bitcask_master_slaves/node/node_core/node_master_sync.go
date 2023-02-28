@@ -21,10 +21,7 @@ func (bitcaskNode *BitcaskNode) AsynchronousSync(req *node.LogEntryRequest) {
 		if status, ok := bitcaskNode.getSlaveStatus(slaveId); !ok || status != nodeInIdle {
 			return true
 		}
-		// if bitcaskNode.slavesStatus[slaveId] != nodeInIdle {
-		// 	// continue
-		// 	return
-		// }
+
 		ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
 		rpc.OpLogEntry(ctx, req)
 		return true
@@ -83,7 +80,6 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 
 		if _, ok := bitcaskNode.getSlaveStatus(slaveId); ok {
 			bitcaskNode.slavesStatus.Store(slaveId, nodeInIdle)
-			// bitcaskNode.slavesStatus[slaveId] = nodeInIdle
 		}
 	}()
 

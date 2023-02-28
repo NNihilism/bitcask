@@ -2751,6 +2751,20 @@ func (p *ReplFinishNotifyReq) FastRead(buf []byte) (int, error) {
 					goto SkipFieldError
 				}
 			}
+		case 3:
+			if fieldTypeId == thrift.I64 {
+				l, err = p.FastReadField3(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
 		default:
 			l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
 			offset += l
@@ -2814,6 +2828,20 @@ func (p *ReplFinishNotifyReq) FastReadField2(buf []byte) (int, error) {
 	return offset, nil
 }
 
+func (p *ReplFinishNotifyReq) FastReadField3(buf []byte) (int, error) {
+	offset := 0
+
+	if v, l, err := bthrift.Binary.ReadI64(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+
+		p.MasterOffset = v
+
+	}
+	return offset, nil
+}
+
 // for compatibility
 func (p *ReplFinishNotifyReq) FastWrite(buf []byte) int {
 	return 0
@@ -2825,6 +2853,7 @@ func (p *ReplFinishNotifyReq) FastWriteNocopy(buf []byte, binaryWriter bthrift.B
 	if p != nil {
 		offset += p.fastWriteField1(buf[offset:], binaryWriter)
 		offset += p.fastWriteField2(buf[offset:], binaryWriter)
+		offset += p.fastWriteField3(buf[offset:], binaryWriter)
 	}
 	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
 	offset += bthrift.Binary.WriteStructEnd(buf[offset:])
@@ -2837,6 +2866,7 @@ func (p *ReplFinishNotifyReq) BLength() int {
 	if p != nil {
 		l += p.field1Length()
 		l += p.field2Length()
+		l += p.field3Length()
 	}
 	l += bthrift.Binary.FieldStopLength()
 	l += bthrift.Binary.StructEndLength()
@@ -2861,6 +2891,15 @@ func (p *ReplFinishNotifyReq) fastWriteField2(buf []byte, binaryWriter bthrift.B
 	return offset
 }
 
+func (p *ReplFinishNotifyReq) fastWriteField3(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "master_offset", thrift.I64, 3)
+	offset += bthrift.Binary.WriteI64(buf[offset:], p.MasterOffset)
+
+	offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	return offset
+}
+
 func (p *ReplFinishNotifyReq) field1Length() int {
 	l := 0
 	l += bthrift.Binary.FieldBeginLength("sync_type", thrift.BYTE, 1)
@@ -2874,6 +2913,15 @@ func (p *ReplFinishNotifyReq) field2Length() int {
 	l := 0
 	l += bthrift.Binary.FieldBeginLength("ok", thrift.BOOL, 2)
 	l += bthrift.Binary.BoolLength(p.Ok)
+
+	l += bthrift.Binary.FieldEndLength()
+	return l
+}
+
+func (p *ReplFinishNotifyReq) field3Length() int {
+	l := 0
+	l += bthrift.Binary.FieldBeginLength("master_offset", thrift.I64, 3)
+	l += bthrift.Binary.I64Length(p.MasterOffset)
 
 	l += bthrift.Binary.FieldEndLength()
 	return l

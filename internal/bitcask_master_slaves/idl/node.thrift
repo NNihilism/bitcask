@@ -111,6 +111,7 @@ struct InfoResponse {
 struct ReplFinishNotifyReq {
     1: i8 sync_type
     2: bool ok
+    3: i64 master_offset
 }
 
 service NodeService {
