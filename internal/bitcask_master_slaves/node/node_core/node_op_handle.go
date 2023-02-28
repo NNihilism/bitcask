@@ -204,6 +204,11 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		rpcResp = iResp.(*node.LogEntryResponse)
 	}
 
+	// 读请求不需要更新任何配置
+	if isReadOperation(command) {
+		return rpcResp, nil
+	}
+
 	// TODO 将下面的代码抽象出来, 可以复用
 	if bitcaskNode.cf.Role == config.Slave {
 		// 进度相同，不会触发更新请求
