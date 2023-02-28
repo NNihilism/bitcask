@@ -181,8 +181,9 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 		return
 	}
 	ok, err = rpc.ReplFinishNotify(context.Background(), &node.ReplFinishNotifyReq{
-		Ok:       true,
-		SyncType: int8(config.FullReplSync),
+		Ok:           true,
+		SyncType:     int8(config.FullReplSync),
+		MasterOffset: int64(bitcaskNode.cf.CurReplicationOffset),
 	})
 	// err或者不ok 都移除该异常节点
 	if err != nil || !ok {

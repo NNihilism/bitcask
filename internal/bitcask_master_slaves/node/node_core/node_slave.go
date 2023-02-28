@@ -104,6 +104,10 @@ func (bitcaskNode *BitcaskNode) HandleRepFailNotify(masterId string) (bool, erro
 func (bitcaskNode *BitcaskNode) HandleReplFinishNotify(req *node.ReplFinishNotifyReq) (bool, error) {
 	if req.Ok {
 		bitcaskNode.syncStatus = nodeInIdle
+		if req.SyncType == int8(config.FullReplSync) {
+			bitcaskNode.cf.CurReplicationOffset = int(req.MasterOffset)
+			bitcaskNode.cf.MasterReplicationOffset = int(req.MasterOffset)
+		}
 		return true, nil
 	}
 	return true, nil
