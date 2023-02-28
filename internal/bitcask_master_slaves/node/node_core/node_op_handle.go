@@ -149,6 +149,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 
 	// 无法解析的命令
 	if !ok {
+		// TODO PackResponse的包装
 		return &node.LogEntryResponse{
 			BaseResp: &node.BaseResp{
 				StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),
