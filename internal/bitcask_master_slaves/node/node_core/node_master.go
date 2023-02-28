@@ -159,3 +159,10 @@ func (bitcaskNode *BitcaskNode) getSlaveStatus(slaveId string) (nodeSynctatusCod
 	}
 	return status.(nodeSynctatusCode), true
 }
+
+func (bitcaskNode *BitcaskNode) saveMasterConfig() {
+	m := config.MasterConfigMap
+	// 写入cur_offset
+	bitcaskNode.db.HSet([]byte(m["key"]), []byte(m["field_cur_offset"]), []byte(fmt.Sprintf("%d", bitcaskNode.cf.CurReplicationOffset)))
+	// 还可以补充别的?
+}
