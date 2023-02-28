@@ -77,7 +77,6 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 // 全量复制
 func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	defer func() {
-
 		if _, ok := bitcaskNode.getSlaveStatus(slaveId); ok {
 			bitcaskNode.slavesStatus.Store(slaveId, nodeInIdle)
 		}
@@ -175,7 +174,6 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	}
 
 	// 通知 全量复制完成/失败 客户端再决定要干嘛
-
 	rpc, ok := bitcaskNode.getSlaveRPC(slaveId)
 	if !ok {
 		return
@@ -219,6 +217,7 @@ func (bitcaskNode *BitcaskNode) SyncLogEntryToSlave(ctx context.Context) {
 	for {
 		select {
 		case reqPack := <-bitcaskNode.syncChan:
+			log.Info("读取到reqPack : [%v]", reqPack)
 			req := reqPack.req
 			id := reqPack.slaveId
 
@@ -309,12 +308,25 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 
 	resp := new(node.PSyncResponse)
 	// 如果缓存中能找到slave节点想要的偏移量， 则增量复制
-	if _, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", slave_repl_offset+1)); ok {
+	// TODO !ok改为ok,现在为了测试全量复制所以使用!ok
+	if _, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", slave_repl_offset+1)); !ok {
 		// go 增量复制
+		// 避免重复创建协程进行数据同步
+		if status, ok := bitcaskNode.getSlaveStatus(req.SlaveId); !ok || status == nodeInIncrRepl {
+			resp.Code = int8(config.Fail)
+			return resp, nil
+		}
+		bitcaskNode.changeSlaveSyncStatus(req.SlaveId, nodeInIncrRepl)
 		go bitcaskNode.IncreReplication(req.SlaveId, slave_repl_offset)
 		resp.Code = int8(config.IncreReplSync)
 	} else {
 		// go 全量复制
+		// 避免重复创建协程进行数据同步
+		if status, ok := bitcaskNode.getSlaveStatus(req.SlaveId); !ok || status == nodeInFullRepl {
+			resp.Code = int8(config.Fail)
+			return resp, nil
+		}
+		bitcaskNode.changeSlaveSyncStatus(req.SlaveId, nodeInFullRepl)
 		go bitcaskNode.FullReplication(req.SlaveId)
 		resp.Code = int8(config.FullReplSync)
 	}
