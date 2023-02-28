@@ -26,7 +26,6 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 	}
 	// 判断是否重复添加
 	if _, ok := bitcaskNode.getSlaveRPC(req.RunId); ok {
-		// if _, ok := bitcaskNode.slavesRpc[req.RunId]; ok {
 		return &node.RegisterSlaveResponse{
 			BaseResp: &node.BaseResp{
 				StatusCode:    int64(node.ErrCode_SlaveofErrCode),
@@ -38,9 +37,6 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 
 	// 添加slave
 	// 1. rpc初始化
-	// if len(bitcaskNode.slavesRpc) == 0 {
-	// 	bitcaskNode.slavesRpc = make(map[string]nodeservice.Client)
-	// }
 
 	c, err := nodeservice.NewClient(
 		consts.NodeServiceName,
@@ -57,7 +53,6 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 		}, nil
 	}
 	bitcaskNode.slavesRpc.Store(req.RunId, c)
-	// bitcaskNode.slavesRpc[req.RunId] = c
 
 	// 2. 修改变量
 	bitcaskNode.cf.ConnectedSlaves += 1
@@ -86,8 +81,6 @@ func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nod
 
 func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
 	bitcaskNode.cf.ConnectedSlaves--
-	// delete(bitcaskNode.slavesRpc, slaveId)
-	// delete(bitcaskNode.slavesStatus, slaveId)
 	bitcaskNode.slavesRpc.Delete(slaveId)
 	bitcaskNode.slavesStatus.Delete(slaveId)
 	return nil
@@ -151,7 +144,7 @@ func (bitcaskNode *BitcaskNode) getSlaveRPC(slaveId string) (nodeservice.Client,
 }
 
 func (bitcaskNode *BitcaskNode) getSlaveStatus(slaveId string) (nodeSynctatusCode, bool) {
-	status, ok := bitcaskNode.slavesRpc.Load(slaveId)
+	status, ok := bitcaskNode.slavesStatus.Load(slaveId)
 	if !ok {
 		log.Errorf("Get slave status [%s] failed", slaveId)
 		bitcaskNode.RemoveSlave(slaveId)

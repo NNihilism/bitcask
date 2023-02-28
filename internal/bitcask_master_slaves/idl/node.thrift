@@ -76,6 +76,7 @@ struct LogEntryRequest {
     1: i64 entry_id // 客户端发起的请求不会有这个标识，主节点发送请求时会有这个标识，方便进度同步
     # 2: OperationCode opCode
     # 3: LogEntry entry
+    # TODO k/v带空格怎么办? 在解析args时不对""环绕内容进行split?
     2: string cmd  
     3: list<string> args
 }

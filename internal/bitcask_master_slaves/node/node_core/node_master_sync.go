@@ -29,9 +29,7 @@ func (bitcaskNode *BitcaskNode) AsynchronousSync(req *node.LogEntryRequest) {
 		rpc.OpLogEntry(ctx, req)
 		return true
 	})
-	// for slaveId, rpc := range bitcaskNode.slavesRpc {
 
-	// }
 }
 
 // 半同步更新
@@ -181,11 +179,7 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	}
 
 	// 通知 全量复制完成/失败 客户端再决定要干嘛
-	// iRpc, ok := bitcaskNode.slavesRpc.Load(slaveId)
-	// if !ok {
-	// 	log.Errorf("Get slave rpc [%s] failed", slaveId)
-	// }
-	// rpc := iRpc.(nodeservice.Client)
+
 	rpc, ok := bitcaskNode.getSlaveRPC(slaveId)
 	if !ok {
 		return
@@ -254,9 +248,6 @@ func (bitcaskNode *BitcaskNode) IncreReplication(slaveId string, offset int64) {
 	}
 
 	slaveRpc, ok := bitcaskNode.getSlaveRPC(slaveId)
-	// slaveRpc, ok := bitcaskNode.slavesRpc[slaveId]
-	// rpc := bitcaskNode.getSlaveRPC(id);
-	// if rpc ==
 
 	if !ok {
 		log.Errorf("Get slave[%s] rpc failed", slaveId)
@@ -329,4 +320,8 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 		resp.Code = int8(config.FullReplSync)
 	}
 	return resp, nil
+}
+
+func (bitcaskNode *BitcaskNode) FlushOpReqBuffer() {
+	// TODO 用于将缓冲区内容刷新
 }

@@ -29,8 +29,6 @@ type BitcaskNode struct {
 	db *bitcask.BitcaskDB
 	cf *config.NodeConfig
 
-	// slavesRpc    map[string]nodeservice.Client
-	// slavesStatus map[string]nodeSynctatusCode
 	slavesRpc    sync.Map
 	slavesStatus sync.Map
 	masterRpc    nodeservice.Client
@@ -38,8 +36,9 @@ type BitcaskNode struct {
 	cacheMu *sync.Mutex
 	opCache *lru.Cache // 主节点用于存储最近收到的写命令，供从节点进行增量复制
 
-	synctatus nodeSynctatusCode
-	syncChan  chan syncChanItem
+	// role == master : syncStatus为nodeInFullRepl时,所有写命令需要放置缓冲区,待syncStatus为Incr或者Idle时才将缓冲区内容写入
+	syncStatus nodeSynctatusCode // 对于Master节点,这个变量可以用来快速判断是否正在与某个slave进行全量复制,对于slave节点,这个变量用于判断目前自身所处状态
+	syncChan   chan syncChanItem
 
 	Ctx    context.Context
 	cancel context.CancelFunc
@@ -56,14 +55,14 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	node := &BitcaskNode{
-		db:        db,
-		cf:        nodeConfig,
-		cacheMu:   new(sync.Mutex),
-		opCache:   lru.New(51200, nil),
-		synctatus: nodeInIdle,
-		syncChan:  make(chan syncChanItem, config.SyncChanSize),
-		Ctx:       ctx,
-		cancel:    cancelFunc,
+		db:         db,
+		cf:         nodeConfig,
+		cacheMu:    new(sync.Mutex),
+		opCache:    lru.New(51200, nil),
+		syncStatus: nodeInIdle,
+		syncChan:   make(chan syncChanItem, config.SyncChanSize),
+		Ctx:        ctx,
+		cancel:     cancelFunc,
 	}
 
 	return node, nil
