@@ -79,6 +79,7 @@ struct LogEntryRequest {
     # TODO k/v带空格怎么办? 在解析args时不对""环绕内容进行split?
     2: string cmd  
     3: list<string> args
+    4: string master_id
 }
 
 struct LogEntryResponse {

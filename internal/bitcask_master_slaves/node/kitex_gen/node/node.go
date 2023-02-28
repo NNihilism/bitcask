@@ -2034,9 +2034,10 @@ func (p *PSyncResponse) Field1DeepEqual(src int8) bool {
 }
 
 type LogEntryRequest struct {
-	EntryId int64    `thrift:"entry_id,1" frugal:"1,default,i64" json:"entry_id"`
-	Cmd     string   `thrift:"cmd,2" frugal:"2,default,string" json:"cmd"`
-	Args_   []string `thrift:"args,3" frugal:"3,default,list<string>" json:"args"`
+	EntryId  int64    `thrift:"entry_id,1" frugal:"1,default,i64" json:"entry_id"`
+	Cmd      string   `thrift:"cmd,2" frugal:"2,default,string" json:"cmd"`
+	Args_    []string `thrift:"args,3" frugal:"3,default,list<string>" json:"args"`
+	MasterId string   `thrift:"master_id,4" frugal:"4,default,string" json:"master_id"`
 }
 
 func NewLogEntryRequest() *LogEntryRequest {
@@ -2058,6 +2059,10 @@ func (p *LogEntryRequest) GetCmd() (v string) {
 func (p *LogEntryRequest) GetArgs_() (v []string) {
 	return p.Args_
 }
+
+func (p *LogEntryRequest) GetMasterId() (v string) {
+	return p.MasterId
+}
 func (p *LogEntryRequest) SetEntryId(val int64) {
 	p.EntryId = val
 }
@@ -2067,11 +2072,15 @@ func (p *LogEntryRequest) SetCmd(val string) {
 func (p *LogEntryRequest) SetArgs_(val []string) {
 	p.Args_ = val
 }
+func (p *LogEntryRequest) SetMasterId(val string) {
+	p.MasterId = val
+}
 
 var fieldIDToName_LogEntryRequest = map[int16]string{
 	1: "entry_id",
 	2: "cmd",
 	3: "args",
+	4: "master_id",
 }
 
 func (p *LogEntryRequest) Read(iprot thrift.TProtocol) (err error) {
@@ -2116,6 +2125,16 @@ func (p *LogEntryRequest) Read(iprot thrift.TProtocol) (err error) {
 		case 3:
 			if fieldTypeId == thrift.LIST {
 				if err = p.ReadField3(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 4:
+			if fieldTypeId == thrift.STRING {
+				if err = p.ReadField4(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -2193,6 +2212,15 @@ func (p *LogEntryRequest) ReadField3(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *LogEntryRequest) ReadField4(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadString(); err != nil {
+		return err
+	} else {
+		p.MasterId = v
+	}
+	return nil
+}
+
 func (p *LogEntryRequest) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin("LogEntryRequest"); err != nil {
@@ -2209,6 +2237,10 @@ func (p *LogEntryRequest) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField3(oprot); err != nil {
 			fieldId = 3
+			goto WriteFieldError
+		}
+		if err = p.writeField4(oprot); err != nil {
+			fieldId = 4
 			goto WriteFieldError
 		}
 
@@ -2289,6 +2321,23 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
 }
 
+func (p *LogEntryRequest) writeField4(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("master_id", thrift.STRING, 4); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteString(p.MasterId); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 end error: ", p), err)
+}
+
 func (p *LogEntryRequest) String() string {
 	if p == nil {
 		return "<nil>"
@@ -2309,6 +2358,9 @@ func (p *LogEntryRequest) DeepEqual(ano *LogEntryRequest) bool {
 		return false
 	}
 	if !p.Field3DeepEqual(ano.Args_) {
+		return false
+	}
+	if !p.Field4DeepEqual(ano.MasterId) {
 		return false
 	}
 	return true
@@ -2338,6 +2390,13 @@ func (p *LogEntryRequest) Field3DeepEqual(src []string) bool {
 		if strings.Compare(v, _src) != 0 {
 			return false
 		}
+	}
+	return true
+}
+func (p *LogEntryRequest) Field4DeepEqual(src string) bool {
+
+	if strings.Compare(p.MasterId, src) != 0 {
+		return false
 	}
 	return true
 }

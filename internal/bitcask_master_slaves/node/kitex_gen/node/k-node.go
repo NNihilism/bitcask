@@ -1601,6 +1601,20 @@ func (p *LogEntryRequest) FastRead(buf []byte) (int, error) {
 					goto SkipFieldError
 				}
 			}
+		case 4:
+			if fieldTypeId == thrift.STRING {
+				l, err = p.FastReadField4(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
 		default:
 			l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
 			offset += l
@@ -1694,6 +1708,20 @@ func (p *LogEntryRequest) FastReadField3(buf []byte) (int, error) {
 	return offset, nil
 }
 
+func (p *LogEntryRequest) FastReadField4(buf []byte) (int, error) {
+	offset := 0
+
+	if v, l, err := bthrift.Binary.ReadString(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+
+		p.MasterId = v
+
+	}
+	return offset, nil
+}
+
 // for compatibility
 func (p *LogEntryRequest) FastWrite(buf []byte) int {
 	return 0
@@ -1706,6 +1734,7 @@ func (p *LogEntryRequest) FastWriteNocopy(buf []byte, binaryWriter bthrift.Binar
 		offset += p.fastWriteField1(buf[offset:], binaryWriter)
 		offset += p.fastWriteField2(buf[offset:], binaryWriter)
 		offset += p.fastWriteField3(buf[offset:], binaryWriter)
+		offset += p.fastWriteField4(buf[offset:], binaryWriter)
 	}
 	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
 	offset += bthrift.Binary.WriteStructEnd(buf[offset:])
@@ -1719,6 +1748,7 @@ func (p *LogEntryRequest) BLength() int {
 		l += p.field1Length()
 		l += p.field2Length()
 		l += p.field3Length()
+		l += p.field4Length()
 	}
 	l += bthrift.Binary.FieldStopLength()
 	l += bthrift.Binary.StructEndLength()
@@ -1760,6 +1790,15 @@ func (p *LogEntryRequest) fastWriteField3(buf []byte, binaryWriter bthrift.Binar
 	return offset
 }
 
+func (p *LogEntryRequest) fastWriteField4(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "master_id", thrift.STRING, 4)
+	offset += bthrift.Binary.WriteStringNocopy(buf[offset:], binaryWriter, p.MasterId)
+
+	offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	return offset
+}
+
 func (p *LogEntryRequest) field1Length() int {
 	l := 0
 	l += bthrift.Binary.FieldBeginLength("entry_id", thrift.I64, 1)
@@ -1787,6 +1826,15 @@ func (p *LogEntryRequest) field3Length() int {
 
 	}
 	l += bthrift.Binary.ListEndLength()
+	l += bthrift.Binary.FieldEndLength()
+	return l
+}
+
+func (p *LogEntryRequest) field4Length() int {
+	l := 0
+	l += bthrift.Binary.FieldBeginLength("master_id", thrift.STRING, 4)
+	l += bthrift.Binary.StringLengthNocopy(p.MasterId)
+
 	l += bthrift.Binary.FieldEndLength()
 	return l
 }
