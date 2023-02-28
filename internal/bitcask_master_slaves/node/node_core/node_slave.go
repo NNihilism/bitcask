@@ -75,7 +75,7 @@ func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 		return
 	}
 	if resp.Code == int8(config.FullReplSync) {
-		bitcaskNode.synctatus = nodeInFullRepl // 只有全量复制时才开启这个变量，开启后对于写请求不会对序列号进行判断，而是直接写入
+		bitcaskNode.syncStatus = nodeInFullRepl // 只有全量复制时才开启这个变量，开启后对于写请求不会对序列号进行判断，而是直接写入
 	}
 }
 
@@ -83,7 +83,7 @@ func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 func (bitcaskNode *BitcaskNode) HandleRepFailNotify(masterId string) (bool, error) {
 	// 请求全量复制
 	// 改变状态
-	bitcaskNode.synctatus = nodeInFullRepl
+	bitcaskNode.syncStatus = nodeInFullRepl
 	// 发送请求
 	resp, err := bitcaskNode.masterRpc.PSync(context.Background(), &node.PSyncRequest{
 		MasterId: bitcaskNode.cf.MasterId,
@@ -97,5 +97,14 @@ func (bitcaskNode *BitcaskNode) HandleRepFailNotify(masterId string) (bool, erro
 		return false, err
 	}
 	bitcaskNode.cf.CurReplicationOffset = 0 // 进度清0
+	return true, nil
+}
+
+// Slave接收到复制结束通知
+func (bitcaskNode *BitcaskNode) HandleReplFinishNotify(req *node.ReplFinishNotifyReq) (bool, error) {
+	if req.Ok {
+		bitcaskNode.syncStatus = nodeInIdle
+		return true, nil
+	}
 	return true, nil
 }

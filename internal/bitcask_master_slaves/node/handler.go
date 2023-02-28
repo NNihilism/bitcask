@@ -51,6 +51,5 @@ func (s *NodeServiceImpl) IncrReplFailNotify(ctx context.Context, masterId strin
 
 // ReplFinishNotify implements the NodeServiceImpl interface.
 func (s *NodeServiceImpl) ReplFinishNotify(ctx context.Context, req *node.ReplFinishNotifyReq) (resp bool, err error) {
-	// TODO: Your code here...
-	return
+	return bitcaskNode.HandleReplFinishNotify(req)
 }
