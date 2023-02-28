@@ -24,7 +24,7 @@ func init() {
 		log.Errorf("create bitcasknode err : %v", err)
 	}
 
-	go bitcaskNode.SyncLogEntryToSlave()
+	go bitcaskNode.SyncLogEntryToSlave(bitcaskNode.Ctx)
 }
 
 var bitcaskNode *nodeCore.BitcaskNode

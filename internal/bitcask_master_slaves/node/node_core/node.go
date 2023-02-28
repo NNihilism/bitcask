@@ -8,6 +8,7 @@ import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node/nodeservice"
 	"bitcaskDB/internal/bitcask_master_slaves/node/util/lru"
 	"bitcaskDB/internal/options"
+	"context"
 	"fmt"
 	"sync"
 )
@@ -28,8 +29,10 @@ type BitcaskNode struct {
 	db *bitcask.BitcaskDB
 	cf *config.NodeConfig
 
-	slavesRpc    map[string]nodeservice.Client
-	slavesStatus map[string]nodeSynctatusCode
+	// slavesRpc    map[string]nodeservice.Client
+	// slavesStatus map[string]nodeSynctatusCode
+	slavesRpc    sync.Map
+	slavesStatus sync.Map
 	masterRpc    nodeservice.Client
 
 	cacheMu *sync.Mutex
@@ -37,6 +40,9 @@ type BitcaskNode struct {
 
 	synctatus nodeSynctatusCode
 	syncChan  chan syncChanItem
+
+	Ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
@@ -48,6 +54,7 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
 	}
 	// defer db.Close()
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	node := &BitcaskNode{
 		db:        db,
 		cf:        nodeConfig,
@@ -55,7 +62,10 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
 		opCache:   lru.New(51200, nil),
 		synctatus: nodeInIdle,
 		syncChan:  make(chan syncChanItem, config.SyncChanSize),
+		Ctx:       ctx,
+		cancel:    cancelFunc,
 	}
+
 	return node, nil
 }
 
