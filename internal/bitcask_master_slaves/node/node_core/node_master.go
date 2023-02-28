@@ -25,7 +25,8 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 		}, nil
 	}
 	// 判断是否重复添加
-	if _, ok := bitcaskNode.getSlaveRPC(req.RunId); ok {
+	if _, ok := bitcaskNode.slavesRpc.Load(req.RunId); ok {
+		// if _, ok := bitcaskNode.getSlaveRPC(req.RunId); ok {
 		return &node.RegisterSlaveResponse{
 			BaseResp: &node.BaseResp{
 				StatusCode:    int64(node.ErrCode_SlaveofErrCode),
