@@ -45,6 +45,14 @@ const (
 	SyncChanSize                = 100
 )
 
+var (
+	// 用于记录master写入数据库中的key以及field
+	MasterConfigMap = map[string]string{
+		"key":              "MasterConfig",
+		"field_cur_offset": "cur_offset",
+	}
+)
+
 type NodeConfig struct {
 	Addr                    string
 	ID                      string
