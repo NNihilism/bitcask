@@ -1,10 +1,10 @@
-package proxyClient
+package cmd
 
 import (
-	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"
-	"bitcaskDB/internal/bitcask_master_slaves/pkg/errno"
+	prxyservice "bitcaskDB/internal/bitcask_master_slaves/proxy/kitex_gen/prxyService"
 	"bitcaskDB/internal/util"
 	"context"
+	"fmt"
 )
 
 type cmdHandler func(client *Client, cmd []byte, args [][]byte) (interface{}, error)
@@ -82,51 +82,67 @@ var supportedCommands = map[string]cmdHandler{
 
 	// // connection management commands
 	// "select": selectDB,
-	"ping":    opLogEntry,
-	"quit":    quit,
-	"slaveof": slaveof,
+	"ping":  opLogEntry,
+	"quit":  quit,
+	"proxy": setProxy,
+	// "slaveof": slaveof,
 
 	// // server management commands
-	"info": info,
+	// "info": info,
 }
 
-func info(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
-	if len(args) != 0 {
-		return nil, errno.NewErr(errno.ErrCodeWrongArgsNumber, &errno.ErrInfo{Cmd: "info"})
-	}
-	resp, err := client.rpcClient.Info(context.Background())
+// func info(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
+// 	if len(args) != 0 {
+// 		return nil, errno.NewErr(errno.ErrCodeWrongArgsNumber, &errno.ErrInfo{Cmd: "info"})
+// 	}
+// 	resp, err := client.rpcClient.Info(context.Background())
 
-	if err != nil {
-		return nil, err
-	}
-	if result, err := ToString(resp); err != nil {
-		return nil, err
-	} else {
-		return result, nil
-	}
-}
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if result, err := ToString(resp); err != nil {
+// 		return nil, err
+// 	} else {
+// 		return result, nil
+// 	}
+// }
 
-func slaveof(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
-	resp, err := client.rpcClient.SendSlaveof(context.Background(), &node.SendSlaveofRequest{
-		Address: string(args[0]),
-	})
-	if err != nil {
-		return nil, err
-	}
-	if result, err := ToString(resp); err != nil {
-		return nil, err
-	} else {
-		return result, nil
-	}
-}
+// func slaveof(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
+// 	resp, err := client.rpcClient.SendSlaveof(context.Background(), &node.SendSlaveofRequest{
+// 		Address: string(args[0]),
+// 	})
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if result, err := ToString(resp); err != nil {
+// 		return nil, err
+// 	} else {
+// 		return result, nil
+// 	}
+// }
 
 func quit(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
 	client.Done <- struct{}{}
 	return "quit....", nil
 }
 
+func setProxy(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
+	if len(args) == 0 {
+		// fmt.Println("invalid addres...")
+		return []byte("invalid addres..."), nil
+	}
+	fmt.Println("...")
+	ok, err := client.rpcClient.Proxy(context.Background(), string(args[0]))
+	if err != nil || !ok {
+		return []byte("proxy failed..."), nil
+	}
+	fmt.Println(".....")
+
+	return []byte("proxy success."), nil
+}
+
 func opLogEntry(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
-	resp, err := client.rpcClient.OpLogEntry(context.Background(), &node.LogEntryRequest{
+	resp, err := client.rpcClient.OpLogEntry(context.Background(), &prxyservice.LogEntryRequest{
 		Cmd:   string(cmd),
 		Args_: util.BytesArrToStrArr(args),
 	})

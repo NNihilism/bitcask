@@ -1,9 +1,10 @@
-package proxyClient
+// 供用户进行命令行输入的模式使用
+package cmd
 
 import (
-	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node/nodeservice"
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/consts"
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/errno"
+	"bitcaskDB/internal/bitcask_master_slaves/proxy/kitex_gen/prxyService/proxyservice"
 	"bitcaskDB/internal/log"
 	"bufio"
 	"bytes"
@@ -21,7 +22,7 @@ type ServerOptions struct {
 }
 
 type Client struct {
-	rpcClient  nodeservice.Client
+	rpcClient  proxyservice.Client
 	input      *bufio.Reader
 	result     chan string
 	Done       chan struct{}
@@ -30,8 +31,8 @@ type Client struct {
 
 func NewClient(network, host, port string) *Client {
 	// 初始化rpc客户端
-	c, err := nodeservice.NewClient(
-		consts.NodeServiceName,
+	c, err := proxyservice.NewClient(
+		consts.ProxyServiceName,
 		client.WithHostPorts(host+":"+port),
 	)
 	if err != nil {
@@ -84,6 +85,8 @@ func (cl *Client) Start() {
 				cl.WriteResult([]byte("(error) " + err.Error()))
 				continue
 			}
+			// fmt.Println("command", string(command))
+			// fmt.Println("args:", util.BytesArrToStrArr(args))
 
 			result, err := cmdFunc(cl, command, args)
 			if err != nil {
