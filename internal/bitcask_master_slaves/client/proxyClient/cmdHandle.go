@@ -1,4 +1,4 @@
-package client
+package proxyClient
 
 import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"

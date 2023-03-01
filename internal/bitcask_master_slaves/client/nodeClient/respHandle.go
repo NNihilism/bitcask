@@ -1,4 +1,4 @@
-package client
+package nodeClient
 
 import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"
