@@ -38,7 +38,6 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 
 	// 添加slave
 	// 1. rpc初始化
-
 	c, err := nodeservice.NewClient(
 		consts.NodeServiceName,
 		client.WithHostPorts(req.Address),
@@ -58,6 +57,10 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 	// 2. 修改变量
 	bitcaskNode.slavesStatus.Store(req.RunId, nodeInIdle)
 	bitcaskNode.cf.ConnectedSlaves += 1
+	bitcaskNode.slavesInfo = append(bitcaskNode.slavesInfo, &slaveInfo{
+		address: req.Address,
+		id:      req.RunId,
+	})
 
 	// 返回结果
 	return &node.RegisterSlaveResponse{
@@ -161,4 +164,17 @@ func (bitcaskNode *BitcaskNode) saveMasterConfig() {
 	// 写入cur_offset
 	bitcaskNode.db.HSet([]byte(m["key"]), []byte(m["field_cur_offset"]), []byte(fmt.Sprintf("%d", bitcaskNode.cf.CurReplicationOffset)))
 	// 还可以补充别的?
+}
+
+func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*node.GetAllNodesInfoResp, error) {
+	slavesAddr := []string{}
+	slavesId := []string{}
+	for _, info := range bitcaskNode.slavesInfo {
+		slavesAddr = append(slavesAddr, info.address)
+		slavesId = append(slavesId, info.id)
+	}
+	return &node.GetAllNodesInfoResp{
+		SlaveAddress: slavesAddr,
+		Slavesid:     slavesId,
+	}, nil
 }

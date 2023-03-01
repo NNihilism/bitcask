@@ -117,11 +117,12 @@ struct ReplFinishNotifyReq {
 }
 
 struct GetAllNodesInfoReq {
-
+    # 1:
 }
 
 struct GetAllNodesInfoResp {
-
+    1: list<string> slaveAddress
+    2: list<string> slavesid
 }
 
 service NodeService {

@@ -19,14 +19,15 @@ func NewServiceInfo() *kitex.ServiceInfo {
 	serviceName := "NodeService"
 	handlerType := (*node.NodeService)(nil)
 	methods := map[string]kitex.MethodInfo{
-		"SendSlaveof":      kitex.NewMethodInfo(sendSlaveofHandler, newNodeServiceSendSlaveofArgs, newNodeServiceSendSlaveofResult, false),
-		"RegisterSlave":    kitex.NewMethodInfo(registerSlaveHandler, newNodeServiceRegisterSlaveArgs, newNodeServiceRegisterSlaveResult, false),
 		"ReplFinishNotify": kitex.NewMethodInfo(replFinishNotifyHandler, newNodeServiceReplFinishNotifyArgs, newNodeServiceReplFinishNotifyResult, false),
+		"RegisterSlave":    kitex.NewMethodInfo(registerSlaveHandler, newNodeServiceRegisterSlaveArgs, newNodeServiceRegisterSlaveResult, false),
 		"PSyncReq":         kitex.NewMethodInfo(pSyncReqHandler, newNodeServicePSyncReqArgs, newNodeServicePSyncReqResult, false),
 		"PSyncReady":       kitex.NewMethodInfo(pSyncReadyHandler, newNodeServicePSyncReadyArgs, newNodeServicePSyncReadyResult, false),
 		"OpLogEntry":       kitex.NewMethodInfo(opLogEntryHandler, newNodeServiceOpLogEntryArgs, newNodeServiceOpLogEntryResult, false),
-		"Ping":             kitex.NewMethodInfo(pingHandler, newNodeServicePingArgs, newNodeServicePingResult, false),
+		"SendSlaveof":      kitex.NewMethodInfo(sendSlaveofHandler, newNodeServiceSendSlaveofArgs, newNodeServiceSendSlaveofResult, false),
 		"Info":             kitex.NewMethodInfo(infoHandler, newNodeServiceInfoArgs, newNodeServiceInfoResult, false),
+		"GetAllNodesInfo":  kitex.NewMethodInfo(getAllNodesInfoHandler, newNodeServiceGetAllNodesInfoArgs, newNodeServiceGetAllNodesInfoResult, false),
+		"Ping":             kitex.NewMethodInfo(pingHandler, newNodeServicePingArgs, newNodeServicePingResult, false),
 	}
 	extra := map[string]interface{}{
 		"PackageName": "node",
@@ -40,42 +41,6 @@ func NewServiceInfo() *kitex.ServiceInfo {
 		Extra:           extra,
 	}
 	return svcInfo
-}
-
-func sendSlaveofHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
-	realArg := arg.(*node.NodeServiceSendSlaveofArgs)
-	realResult := result.(*node.NodeServiceSendSlaveofResult)
-	success, err := handler.(node.NodeService).SendSlaveof(ctx, realArg.Req)
-	if err != nil {
-		return err
-	}
-	realResult.Success = success
-	return nil
-}
-func newNodeServiceSendSlaveofArgs() interface{} {
-	return node.NewNodeServiceSendSlaveofArgs()
-}
-
-func newNodeServiceSendSlaveofResult() interface{} {
-	return node.NewNodeServiceSendSlaveofResult()
-}
-
-func registerSlaveHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
-	realArg := arg.(*node.NodeServiceRegisterSlaveArgs)
-	realResult := result.(*node.NodeServiceRegisterSlaveResult)
-	success, err := handler.(node.NodeService).RegisterSlave(ctx, realArg.Req)
-	if err != nil {
-		return err
-	}
-	realResult.Success = success
-	return nil
-}
-func newNodeServiceRegisterSlaveArgs() interface{} {
-	return node.NewNodeServiceRegisterSlaveArgs()
-}
-
-func newNodeServiceRegisterSlaveResult() interface{} {
-	return node.NewNodeServiceRegisterSlaveResult()
 }
 
 func replFinishNotifyHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
@@ -94,6 +59,24 @@ func newNodeServiceReplFinishNotifyArgs() interface{} {
 
 func newNodeServiceReplFinishNotifyResult() interface{} {
 	return node.NewNodeServiceReplFinishNotifyResult()
+}
+
+func registerSlaveHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*node.NodeServiceRegisterSlaveArgs)
+	realResult := result.(*node.NodeServiceRegisterSlaveResult)
+	success, err := handler.(node.NodeService).RegisterSlave(ctx, realArg.Req)
+	if err != nil {
+		return err
+	}
+	realResult.Success = success
+	return nil
+}
+func newNodeServiceRegisterSlaveArgs() interface{} {
+	return node.NewNodeServiceRegisterSlaveArgs()
+}
+
+func newNodeServiceRegisterSlaveResult() interface{} {
+	return node.NewNodeServiceRegisterSlaveResult()
 }
 
 func pSyncReqHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
@@ -150,22 +133,22 @@ func newNodeServiceOpLogEntryResult() interface{} {
 	return node.NewNodeServiceOpLogEntryResult()
 }
 
-func pingHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
-
-	realResult := result.(*node.NodeServicePingResult)
-	success, err := handler.(node.NodeService).Ping(ctx)
+func sendSlaveofHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*node.NodeServiceSendSlaveofArgs)
+	realResult := result.(*node.NodeServiceSendSlaveofResult)
+	success, err := handler.(node.NodeService).SendSlaveof(ctx, realArg.Req)
 	if err != nil {
 		return err
 	}
 	realResult.Success = success
 	return nil
 }
-func newNodeServicePingArgs() interface{} {
-	return node.NewNodeServicePingArgs()
+func newNodeServiceSendSlaveofArgs() interface{} {
+	return node.NewNodeServiceSendSlaveofArgs()
 }
 
-func newNodeServicePingResult() interface{} {
-	return node.NewNodeServicePingResult()
+func newNodeServiceSendSlaveofResult() interface{} {
+	return node.NewNodeServiceSendSlaveofResult()
 }
 
 func infoHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
@@ -186,6 +169,42 @@ func newNodeServiceInfoResult() interface{} {
 	return node.NewNodeServiceInfoResult()
 }
 
+func getAllNodesInfoHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*node.NodeServiceGetAllNodesInfoArgs)
+	realResult := result.(*node.NodeServiceGetAllNodesInfoResult)
+	success, err := handler.(node.NodeService).GetAllNodesInfo(ctx, realArg.Req)
+	if err != nil {
+		return err
+	}
+	realResult.Success = success
+	return nil
+}
+func newNodeServiceGetAllNodesInfoArgs() interface{} {
+	return node.NewNodeServiceGetAllNodesInfoArgs()
+}
+
+func newNodeServiceGetAllNodesInfoResult() interface{} {
+	return node.NewNodeServiceGetAllNodesInfoResult()
+}
+
+func pingHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+
+	realResult := result.(*node.NodeServicePingResult)
+	success, err := handler.(node.NodeService).Ping(ctx)
+	if err != nil {
+		return err
+	}
+	realResult.Success = success
+	return nil
+}
+func newNodeServicePingArgs() interface{} {
+	return node.NewNodeServicePingArgs()
+}
+
+func newNodeServicePingResult() interface{} {
+	return node.NewNodeServicePingResult()
+}
+
 type kClient struct {
 	c client.Client
 }
@@ -196,11 +215,11 @@ func newServiceClient(c client.Client) *kClient {
 	}
 }
 
-func (p *kClient) SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest) (r *node.SendSlaveofResponse, err error) {
-	var _args node.NodeServiceSendSlaveofArgs
+func (p *kClient) ReplFinishNotify(ctx context.Context, req *node.ReplFinishNotifyReq) (r bool, err error) {
+	var _args node.NodeServiceReplFinishNotifyArgs
 	_args.Req = req
-	var _result node.NodeServiceSendSlaveofResult
-	if err = p.c.Call(ctx, "SendSlaveof", &_args, &_result); err != nil {
+	var _result node.NodeServiceReplFinishNotifyResult
+	if err = p.c.Call(ctx, "ReplFinishNotify", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil
@@ -211,16 +230,6 @@ func (p *kClient) RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequ
 	_args.Req = req
 	var _result node.NodeServiceRegisterSlaveResult
 	if err = p.c.Call(ctx, "RegisterSlave", &_args, &_result); err != nil {
-		return
-	}
-	return _result.GetSuccess(), nil
-}
-
-func (p *kClient) ReplFinishNotify(ctx context.Context, req *node.ReplFinishNotifyReq) (r bool, err error) {
-	var _args node.NodeServiceReplFinishNotifyArgs
-	_args.Req = req
-	var _result node.NodeServiceReplFinishNotifyResult
-	if err = p.c.Call(ctx, "ReplFinishNotify", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil
@@ -256,10 +265,11 @@ func (p *kClient) OpLogEntry(ctx context.Context, req *node.LogEntryRequest) (r 
 	return _result.GetSuccess(), nil
 }
 
-func (p *kClient) Ping(ctx context.Context) (r *node.PingResponse, err error) {
-	var _args node.NodeServicePingArgs
-	var _result node.NodeServicePingResult
-	if err = p.c.Call(ctx, "Ping", &_args, &_result); err != nil {
+func (p *kClient) SendSlaveof(ctx context.Context, req *node.SendSlaveofRequest) (r *node.SendSlaveofResponse, err error) {
+	var _args node.NodeServiceSendSlaveofArgs
+	_args.Req = req
+	var _result node.NodeServiceSendSlaveofResult
+	if err = p.c.Call(ctx, "SendSlaveof", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil
@@ -269,6 +279,25 @@ func (p *kClient) Info(ctx context.Context) (r *node.InfoResponse, err error) {
 	var _args node.NodeServiceInfoArgs
 	var _result node.NodeServiceInfoResult
 	if err = p.c.Call(ctx, "Info", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) GetAllNodesInfo(ctx context.Context, req *node.GetAllNodesInfoReq) (r *node.GetAllNodesInfoResp, err error) {
+	var _args node.NodeServiceGetAllNodesInfoArgs
+	_args.Req = req
+	var _result node.NodeServiceGetAllNodesInfoResult
+	if err = p.c.Call(ctx, "GetAllNodesInfo", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) Ping(ctx context.Context) (r *node.PingResponse, err error) {
+	var _args node.NodeServicePingArgs
+	var _result node.NodeServicePingResult
+	if err = p.c.Call(ctx, "Ping", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

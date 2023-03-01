@@ -27,12 +27,19 @@ type syncChanItem struct {
 	req     *node.LogEntryRequest
 	slaveId string
 }
+
+type slaveInfo struct {
+	address string
+	id      string
+}
+
 type BitcaskNode struct {
 	db *bitcask.BitcaskDB
 	cf *config.NodeConfig
 
 	slavesRpc    sync.Map
 	slavesStatus sync.Map
+	slavesInfo   []*slaveInfo
 	masterRpc    nodeservice.Client
 
 	cacheMu *sync.Mutex

@@ -63,3 +63,8 @@ func (s *NodeServiceImpl) PSyncReq(ctx context.Context, req *node.PSyncRequest) 
 func (s *NodeServiceImpl) PSyncReady(ctx context.Context, req *node.PSyncRequest) (resp *node.PSyncResponse, err error) {
 	return bitcaskNode.HandlePSyncReady(req)
 }
+
+// GetAllNodesInfo implements the NodeServiceImpl interface.
+func (s *NodeServiceImpl) GetAllNodesInfo(ctx context.Context, req *node.GetAllNodesInfoReq) (resp *node.GetAllNodesInfoResp, err error) {
+	return bitcaskNode.GetAllNodesInfo(req)
+}
