@@ -43,18 +43,18 @@ const (
 	SyncType                    = Asynchronous
 	SemiSynchronousRate float64 = 0.5 // 需要进行同步更新的比例
 	SyncChanSize                = 100
+	RemakeDir                   = false // 创建数据库时 是否需要把原来的数据库删除
 )
 
 var (
 	// 用于记录master写入数据库中的key以及field
-	MasterConfigMap = map[string]string{
-		"key":              "MasterConfig",
-		"field_cur_offset": "cur_offset",
+	MasterConfigMap = map[string][]byte{
+		"key":              []byte("MasterConfig"),
+		"field_cur_offset": []byte("cur_offset"),
 	}
 )
 
 type NodeConfig struct {
-	// TODO 添加字段 标识是否要删除原有目录
 	Addr                    string
 	ID                      string
 	MasterId                string
@@ -63,6 +63,7 @@ type NodeConfig struct {
 	ConnectedSlaves         int
 	MasterReplicationOffset int
 	CurReplicationOffset    int
+	RemakeDir               bool
 }
 
 type PSyncRespCode int8

@@ -52,6 +52,7 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 		bitcaskNode.masterRpc = c
 		bitcaskNode.cf.Role = config.Slave
 		bitcaskNode.cf.MasterId = rpcResp.RunId
+		bitcaskNode.resetReplication(true)
 	}
 
 	resp = new(node.SendSlaveofResponse)
@@ -83,7 +84,7 @@ func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 	}
 	if resp.Code == int8(config.FullReplSync) {
 		bitcaskNode.syncStatus = nodeInFullRepl // 只有全量复制时才开启这个变量，开启后对于写请求不会对序列号进行判断，而是直接写入
-		bitcaskNode.resetReplication()
+		bitcaskNode.resetReplication(true)
 		log.Infof("ready to full replication")
 		bitcaskNode.sendPSyncReady() // 通知master可以开始发送数据了
 	}

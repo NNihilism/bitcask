@@ -118,6 +118,11 @@ func Open(opts options.Options) (*BitcaskDB, error) {
 	// create the dir if the path does not exist
 	// TODO 如果路径存在，是否需要删除原路径文件
 	log.Info("path:", opts.DBPath)
+
+	if opts.RemakeDir && util.PathExist(opts.DBPath) {
+		os.RemoveAll(opts.DBPath)
+	}
+
 	if !util.PathExist(opts.DBPath) {
 		if err := os.MkdirAll(opts.DBPath, os.ModePerm); err != nil {
 			log.Errorf("Failed to create dir")

@@ -7,9 +7,11 @@ import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node/nodeservice"
 	"bitcaskDB/internal/bitcask_master_slaves/node/util/lru"
+	"bitcaskDB/internal/log"
 	"bitcaskDB/internal/options"
-	"context"
 	"fmt"
+	"reflect"
+	"strconv"
 	"sync"
 )
 
@@ -40,20 +42,36 @@ type BitcaskNode struct {
 	syncStatus nodeSynctatusCode // 对于Master节点,这个变量可以用来快速判断是否正在与某个slave进行全量复制,对于slave节点,这个变量用于判断目前自身所处状态
 	// syncChan   chan syncChanItem
 
-	Ctx    context.Context
-	cancel context.CancelFunc
+	// Ctx    context.Context
+	// cancel context.CancelFunc
 }
 
-func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
-	opts := options.DefaultOptions(nodeConfig.Path)
+func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*BitcaskNode, error) {
+	// 参数为空，则使用默认配置
+	if reflect.DeepEqual(opts, options.Options{}) {
+		opts = options.DefaultOptions(nodeConfig.Path)
+	}
+	opts.RemakeDir = nodeConfig.RemakeDir
+
+	// 创建数据库
 	db, err := bitcask.Open(opts)
 	if err != nil {
 		fmt.Printf("open bitcaskdb err: %v", err)
 		return nil, err
 	}
-	// defer db.Close()
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	// 读取数据库中的偏移字段
+	strOffset, _ := db.HGet(config.MasterConfigMap["key"], config.MasterConfigMap["cur_offset"])
+	var offset int
+	if strOffset != nil {
+		offset, err := strconv.Atoi(string(strOffset))
+		if err != nil {
+			log.Errorf("strconv.Atoi(%s) err [%v]", offset, err)
+		}
+	}
+	nodeConfig.CurReplicationOffset = offset
+
+	// 创建node节点
 	node := &BitcaskNode{
 		db:         db,
 		cf:         nodeConfig,
@@ -61,8 +79,8 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig) (*BitcaskNode, error) {
 		opCache:    lru.New(51200, nil),
 		syncStatus: nodeInIdle,
 		// syncChan:   make(chan syncChanItem, config.SyncChanSize),
-		Ctx:    ctx,
-		cancel: cancelFunc,
+		// Ctx:    ctx,
+		// cancel: cancelFunc,
 	}
 
 	return node, nil
@@ -72,9 +90,19 @@ func (node *BitcaskNode) GetConfig() *config.NodeConfig {
 	return node.cf
 }
 
-func (node *BitcaskNode) resetReplication() {
+func (node *BitcaskNode) resetReplication(resetDB bool) {
 	// 重置 包括清空数据库数据以及相关offset
 	// TODO 可以根据role进行不同程度的reset?
 	node.cf.CurReplicationOffset = 0
-	// node.db = NewBitcaskNode
+
+	if resetDB {
+		opts := options.DefaultOptions(node.cf.Path)
+		opts.RemakeDir = true
+		db, err := bitcask.Open(opts)
+		if err != nil {
+			fmt.Printf("open bitcaskdb err: %v", err)
+			return
+		}
+		node.db = db
+	}
 }
