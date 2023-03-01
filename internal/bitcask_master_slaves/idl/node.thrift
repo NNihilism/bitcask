@@ -116,17 +116,39 @@ struct ReplFinishNotifyReq {
     4: i64 last_entry_id    // 供slave在全量复制时校验用
 }
 
+struct GetAllNodesInfoReq {
+
+}
+
+struct GetAllNodesInfoResp {
+
+}
+
 service NodeService {
     # for client
-    SendSlaveofResponse SendSlaveof(1: SendSlaveofRequest req)
     # for other node
-    RegisterSlaveResponse RegisterSlave(1: RegisterSlaveRequest req)
 
+    # master -> slave
     bool ReplFinishNotify(ReplFinishNotifyReq req)
-    # bool IncrReplFailNotify(string masterId)    // 增量复制失败时,master用于通知slave增量复制终止
+
+    # slave -> master
+    RegisterSlaveResponse RegisterSlave(1: RegisterSlaveRequest req)
     PSyncResponse PSyncReq(1: PSyncRequest req) // slave发起请求
     PSyncResponse PSyncReady(1: PSyncRequest req)  // slave告知master已经准备好
+
+    # client -> master/slave
+    # master -> client
+    # proxy -> client/master
     LogEntryResponse OpLogEntry(1: LogEntryRequest req)
-    PingResponse Ping()
-    InfoResponse Info()
+
+    # client -> master
+    SendSlaveofResponse SendSlaveof(1: SendSlaveofRequest req)  // 客户端要求某节点成为指定节点的slave
+    InfoResponse Info() // 客户端获取节点的信息
+
+    # proxt -> master
+    GetAllNodesInfoResp GetAllNodesInfo(1: GetAllNodesInfoReq req)
+    # proxy -> slave
+    # master -> slave
+    PingResponse Ping() // 心跳检测 主动？
+
 }
