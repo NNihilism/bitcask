@@ -340,9 +340,8 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 	slave_repl_offset := req.Offset
 
 	resp := new(node.PSyncResponse)
-	// 如果缓存中能找到slave节点想要的偏移量， 则增量复制
-	// TODO !ok改为ok,现在为了测试全量复制所以使用!ok
-	if _, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", slave_repl_offset+1)); !ok {
+	// 如果缓存中能找到slave节点想要的偏移量，则增量复制
+	if _, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", slave_repl_offset+1)); ok {
 		// 避免重复创建协程进行数据同步
 		if status, ok := bitcaskNode.getSlaveStatus(req.SlaveId); !ok || status == nodeInIncrRepl {
 			resp.Code = int8(config.Fail)
