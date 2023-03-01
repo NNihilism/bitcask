@@ -184,6 +184,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 				bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
 			}
 			// 发送数据同步请求
+			log.Infof("slave still want to send sync req..., status[%v], entryid[%d], offset[%d]", bitcaskNode.syncStatus, req.EntryId, bitcaskNode.cf.CurReplicationOffset)
 			bitcaskNode.sendPSyncReq()
 			return
 		}

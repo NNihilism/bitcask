@@ -58,10 +58,7 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 	// 2. 修改变量
 	bitcaskNode.slavesStatus.Store(req.RunId, nodeInIdle)
 	bitcaskNode.cf.ConnectedSlaves += 1
-	// if len(bitcaskNode.slavesStatus) == 0 {
-	// bitcaskNode.slavesStatus = make(map[string]nodeSynctatusCode)
-	// }
-	// bitcaskNode.slavesStatus[req.RunId] = nodeInIdle
+
 	// 返回结果
 	return &node.RegisterSlaveResponse{
 		BaseResp: &node.BaseResp{
@@ -74,9 +71,13 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 
 func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nodeSynctatusCode) {
 	if _, ok := bitcaskNode.getSlaveStatus(slaveId); !ok {
+		log.Info("I am coming...")
 		bitcaskNode.RemoveSlave(slaveId)
 		return
 	}
+	log.Infof("change slave[%s] status[%v]", slaveId, status)
+	log.Infof("status == idle", status == nodeInIdle)
+	log.Infof("status == fullRepl", status == nodeInFullRepl)
 	bitcaskNode.slavesStatus.Store(slaveId, status)
 }
 

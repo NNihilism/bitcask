@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 )
 
 // 异步更新
@@ -20,6 +19,8 @@ func (bitcaskNode *BitcaskNode) AsynchronousSync(req *node.LogEntryRequest) {
 
 		// 子节点正在进行全量/增量复制
 		if status, ok := bitcaskNode.getSlaveStatus(slaveId); !ok || status != nodeInIdle {
+			log.Infof("slave[%s] is not idle", slaveId)
+			// TODO 在这里将req写入对应slave的缓存
 			return true
 		}
 
@@ -66,6 +67,8 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 
 		// 子节点正在进行全量/增量复制
 		if status, ok := bitcaskNode.getSlaveStatus(slaveId); !ok || status != nodeInIdle {
+			log.Infof("slave[%s] is not idle", slaveId)
+
 			return true
 		}
 
@@ -78,14 +81,15 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 // 全量复制
 func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	defer func() {
+		log.Infof("defer() : status : [%v]", nodeInIdle)
 		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 	}()
 
 	// 数据解析与数据发送可以并发执行
-	wg := new(sync.WaitGroup)
+	wg := sync.WaitGroup{}
 	wg.Add(1)
 	syncChan := make(chan syncChanItem, config.SyncChanSize)
-	go bitcaskNode.SyncLogEntryToSlave(wg, syncChan)
+	go bitcaskNode.SyncLogEntryToSlave(&wg, syncChan)
 
 	var tmp_entry_id int64 = 1 // 供slave校验用,记录发送的记录个数是否正确
 
@@ -190,14 +194,17 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	if !ok {
 		return
 	}
-	log.Info("server finish sending all req to channel")
+	log.Info("server finish sending all req to channel, and waiting....")
+	close(syncChan)
 	wg.Wait() // 等待数据都发送完了再通知 不然slave可能先收到结束通知导致不接收尚未发送完的数据
+	log.Info("server finish sending!")
 	ok, err = rpc.ReplFinishNotify(context.Background(), &node.ReplFinishNotifyReq{
 		Ok:           true,
 		SyncType:     int8(config.FullReplSync),
 		LastEntryId:  tmp_entry_id - 1, // 供slave校验用
 		MasterOffset: int64(bitcaskNode.cf.CurReplicationOffset),
 	})
+
 	// err或者不ok 都移除该异常节点
 	if err != nil || !ok {
 		log.Info("remove slave [%s], [err != nil : %v], [ok : %v]", slaveId, err != nil, ok)
@@ -241,12 +248,12 @@ func (bitcaskNode *BitcaskNode) SyncLogEntryToSlave(wg *sync.WaitGroup, syncChan
 			if !ok {
 				return
 			}
-			log.Info("读取reqPack. req : [%v], id : [%v]", reqPack.req, reqPack.slaveId)
+			// log.Info("读取reqPack. req : [%v], id : [%v]", reqPack.req, reqPack.slaveId)
 			req := reqPack.req
 			id := reqPack.slaveId
 
 			if rpc, ok := bitcaskNode.getSlaveRPC(id); ok {
-				log.Infof("发送 OpLogEntry请求 : [%d]", time.Now().Unix())
+				log.Infof("发送 reqPack. req : [%v], id : [%v]", reqPack.req, reqPack.slaveId)
 				rpc.OpLogEntry(context.TODO(), req)
 			}
 
@@ -342,7 +349,7 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 			return resp, nil
 		}
 		bitcaskNode.changeSlaveSyncStatus(req.SlaveId, nodeInIncrRepl)
-		go bitcaskNode.IncreReplication(req.SlaveId, slave_repl_offset) // 这玩意可能发送的太快了,slave没准备好
+		go bitcaskNode.IncreReplication(req.SlaveId, slave_repl_offset)
 		resp.Code = int8(config.IncreReplSync)
 	} else {
 		// 避免重复创建协程进行数据同步

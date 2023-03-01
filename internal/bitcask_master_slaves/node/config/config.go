@@ -40,7 +40,7 @@ const (
 	BaseDBPath                  = "/home/tmp/"
 	RpcTimeOut                  = time.Second // rpc超时时间
 	NodeTopology                = Star
-	SyncType                    = SemiSynchronous
+	SyncType                    = Asynchronous
 	SemiSynchronousRate float64 = 0.5 // 需要进行同步更新的比例
 	SyncChanSize                = 100
 )
