@@ -20,6 +20,9 @@ type Options struct {
 	// DBPath db path, will be created automatically if not exist.
 	DBPath string
 
+	// If db path is exist already, the path will be delete and create a new one.
+	RemakeDir bool
+
 	// IndexMode mode of index, support KeyValueMemMode and KeyOnlyMemMode now.
 	// Note that this mode is only for kv pairs, not List, Hash, Set, and ZSet.
 	// Default value is KeyOnlyMemMode.
