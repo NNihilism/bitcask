@@ -60,6 +60,7 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 	bitcaskNode.slavesInfo = append(bitcaskNode.slavesInfo, &slaveInfo{
 		address: req.Address,
 		id:      req.RunId,
+		weight:  int(req.Weight),
 	})
 
 	// 返回结果
@@ -69,19 +70,42 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 			StatusMessage: fmt.Sprintf("Slaveof node [ip:% s, runid:% s] successfully.", bitcaskNode.cf.Addr, bitcaskNode.cf.ID),
 			ServiceTime:   time.Now().Unix(),
 		},
+		RunId: bitcaskNode.cf.ID,
 	}, nil
 }
 
-func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nodeSynctatusCode) {
-	if _, ok := bitcaskNode.getSlaveStatus(slaveId); !ok {
-		log.Info("I am coming...")
+// sync.Map好像并不能满足这里的并发需求
+// 虽然Load和Store是并发安全的，但是并不能原子执行
+// 需要一个类似CAS的语句来保证并发安全
+// sync.Map就不改回去了
+func (bitcaskNode *BitcaskNode) casSlaveSyncStatus(slaveId string, origin, target nodeSynctatusCode) bool {
+	bitcaskNode.slaveInfoMu.Lock()
+	defer bitcaskNode.slaveInfoMu.Unlock()
+
+	if status, ok := bitcaskNode.getSlaveStatus(slaveId); !ok {
 		bitcaskNode.RemoveSlave(slaveId)
-		return
+		return false
+	} else if status != origin {
+		return false
+	}
+	bitcaskNode.slavesStatus.Store(slaveId, target)
+	return true
+}
+
+func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nodeSynctatusCode) bool {
+	// bitcaskNode.slaveInfoMu.Lock()
+	// defer bitcaskNode.slaveInfoMu.Unlock()
+
+	if _, ok := bitcaskNode.getSlaveStatus(slaveId); !ok {
+		// log.Info("I am coming...")
+		bitcaskNode.RemoveSlave(slaveId)
+		return false
 	}
 	log.Infof("change slave[%s] status[%v]", slaveId, status)
 	log.Infof("status == idle", status == nodeInIdle)
 	log.Infof("status == fullRepl", status == nodeInFullRepl)
 	bitcaskNode.slavesStatus.Store(slaveId, status)
+	return true
 }
 
 func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
@@ -167,14 +191,23 @@ func (bitcaskNode *BitcaskNode) saveMasterConfig() {
 }
 
 func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*node.GetAllNodesInfoResp, error) {
-	slavesAddr := []string{}
-	slavesId := []string{}
-	for _, info := range bitcaskNode.slavesInfo {
-		slavesAddr = append(slavesAddr, info.address)
-		slavesId = append(slavesId, info.id)
+	// slavesAddr := []string{}
+	// slavesId := []string{}
+	infos := make([]*node.SlaveInfo, len(bitcaskNode.slavesInfo))
+
+	for i, info := range bitcaskNode.slavesInfo {
+		// slavesAddr = append(slavesAddr, info.address)
+		// slavesId = append(slavesId, info.id)
+		infos[i] = &node.SlaveInfo{
+			Addr:   info.address,
+			Id:     info.id,
+			Weight: int32(info.weight),
+		}
 	}
+
 	return &node.GetAllNodesInfoResp{
-		SlaveAddress: slavesAddr,
-		Slavesid:     slavesId,
+		// SlaveAddress: slavesAddr,
+		// Slavesid:     slavesId,
+		Infos: infos,
 	}, nil
 }

@@ -64,6 +64,7 @@ type NodeConfig struct {
 	MasterReplicationOffset int
 	CurReplicationOffset    int
 	RemakeDir               bool
+	Weight                  int
 }
 
 type PSyncRespCode int8

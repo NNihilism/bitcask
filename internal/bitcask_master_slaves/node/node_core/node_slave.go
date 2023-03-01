@@ -34,6 +34,7 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 	rpcResp, err := c.RegisterSlave(context.Background(), &node.RegisterSlaveRequest{
 		Address: bitcaskNode.cf.Addr,
 		RunId:   bitcaskNode.cf.ID,
+		Weight:  int32(bitcaskNode.cf.Weight),
 	})
 
 	if err != nil {
@@ -49,6 +50,7 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 
 	// 若成功，则改变自身状态信息
 	if rpcResp.BaseResp.StatusCode == 0 {
+		log.Infof("Connecting to MASTER %s", rpcResp.RunId)
 		bitcaskNode.masterRpc = c
 		bitcaskNode.cf.Role = config.Slave
 		bitcaskNode.cf.MasterId = rpcResp.RunId
@@ -66,6 +68,7 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 
 // 从节点给主节点发送PsyncReq请求
 func (bitcaskNode *BitcaskNode) sendPSyncReq() {
+	log.Infof("MASTER <-> REPLICA sync started")
 	// 处于同步状态,还是可能出发数据请求,是否重复则由服务端判断
 	// if bitcaskNode.syncStatus != nodeInIdle {
 	// return
@@ -82,10 +85,13 @@ func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 	if resp.Code == int8(config.Fail) {
 		return
 	}
+	if resp.Code != int8(config.IncreReplSync) {
+		log.Infof("Partial resynchronization not possible (no cached master)")
+	}
 	if resp.Code == int8(config.FullReplSync) {
 		bitcaskNode.syncStatus = nodeInFullRepl // 只有全量复制时才开启这个变量，开启后对于写请求不会对序列号进行判断，而是直接写入
 		bitcaskNode.resetReplication(true)
-		log.Infof("ready to full replication")
+		log.Infof("Full resync from master: [%s]", bitcaskNode.cf.MasterId)
 		bitcaskNode.sendPSyncReady() // 通知master可以开始发送数据了
 	}
 }
@@ -130,10 +136,7 @@ func (bitcaskNode *BitcaskNode) sendPSyncReady() {
 // Slave接收到复制结束通知
 func (bitcaskNode *BitcaskNode) HandleReplFinishNotify(req *node.ReplFinishNotifyReq) (bool, error) {
 	if req.Ok {
-		log.Infof("slave change his status...")
-		log.Infof("before : ", bitcaskNode.syncStatus)
 		bitcaskNode.syncStatus = nodeInIdle
-		log.Infof("before : ", bitcaskNode.syncStatus)
 
 		if req.SyncType == int8(config.FullReplSync) {
 			// 如果是全量复制结束 则需要校验下最后收到的id是否正确,如果正确,则修改offset
@@ -144,6 +147,7 @@ func (bitcaskNode *BitcaskNode) HandleReplFinishNotify(req *node.ReplFinishNotif
 			}
 			bitcaskNode.cf.CurReplicationOffset = int(req.MasterOffset)
 			bitcaskNode.cf.MasterReplicationOffset = int(req.MasterOffset)
+			log.Infof("MASTER <-> REPLICA sync: Finished with success")
 		}
 		return true, nil
 	}

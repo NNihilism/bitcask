@@ -269,12 +269,20 @@ func (bitcaskNode *BitcaskNode) SyncLogEntryToSlave(wg *sync.WaitGroup, syncChan
 // 增量复制
 // offset : slave当前的offset
 func (bitcaskNode *BitcaskNode) IncreReplication(slaveId string, offset int64) {
-	// 已有协程在进行增量复制
-	if status, ok := bitcaskNode.slavesStatus.Load(slaveId); !ok {
-		log.Errorf("Get slave[%s] status failed", slaveId)
-	} else if status == nodeInIncrRepl {
+	// if status, ok := bitcaskNode.slavesStatus.Load(slaveId); !ok {
+	// 	log.Errorf("Get slave[%s] status failed", slaveId)
+	// } else if status == nodeInIncrRepl {
+	// 	return
+	// }
+
+	// bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIncrRepl)
+
+	log.Infof("here...")
+	if ok := bitcaskNode.casSlaveSyncStatus(slaveId, nodeInIdle, nodeInIncrRepl); !ok {
+		// 已有协程在进行增量复制
 		return
 	}
+	log.Infof("Start incre repl for slave[%s]", slaveId)
 
 	slaveRpc, ok := bitcaskNode.getSlaveRPC(slaveId)
 
@@ -347,7 +355,7 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 			resp.Code = int8(config.Fail)
 			return resp, nil
 		}
-		bitcaskNode.changeSlaveSyncStatus(req.SlaveId, nodeInIncrRepl)
+		log.Infof("Ready to incre repl for slave[%s]", req.SlaveId)
 		go bitcaskNode.IncreReplication(req.SlaveId, slave_repl_offset)
 		resp.Code = int8(config.IncreReplSync)
 	} else {

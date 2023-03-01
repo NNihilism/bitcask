@@ -193,7 +193,7 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 	log.Infof("ready to op...")
 	// 执行对应的操作
 	rpcResp := &node.LogEntryResponse{}
-	// TODO 如果为Master且正在执行全量复制,则需要将结果放置缓冲区,先不执行
+
 	if res, err := cmdFunc(bitcaskNode, util.StrArrToByteArr(args)); err != nil {
 		rpcResp.BaseResp = &node.BaseResp{
 			StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),

@@ -31,12 +31,14 @@ type syncChanItem struct {
 type slaveInfo struct {
 	address string
 	id      string
+	weight  int
 }
 
 type BitcaskNode struct {
 	db *bitcask.BitcaskDB
 	cf *config.NodeConfig
 
+	slaveInfoMu  *sync.RWMutex
 	slavesRpc    sync.Map
 	slavesStatus sync.Map
 	slavesInfo   []*slaveInfo
@@ -80,11 +82,12 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 
 	// 创建node节点
 	node := &BitcaskNode{
-		db:         db,
-		cf:         nodeConfig,
-		cacheMu:    new(sync.Mutex),
-		opCache:    lru.New(51200, nil),
-		syncStatus: nodeInIdle,
+		db:          db,
+		cf:          nodeConfig,
+		slaveInfoMu: new(sync.RWMutex),
+		cacheMu:     new(sync.Mutex),
+		opCache:     lru.New(51200, nil),
+		syncStatus:  nodeInIdle,
 		// syncChan:   make(chan syncChanItem, config.SyncChanSize),
 		// Ctx:    ctx,
 		// cancel: cancelFunc,
@@ -106,6 +109,7 @@ func (node *BitcaskNode) resetReplication(resetDB bool) {
 		opts := options.DefaultOptions(node.cf.Path)
 		opts.RemakeDir = true
 		db, err := bitcask.Open(opts)
+		log.Infof("MASTER <-> REPLICA sync: Flushing old data")
 		if err != nil {
 			fmt.Printf("open bitcaskdb err: %v", err)
 			return

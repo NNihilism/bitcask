@@ -18,6 +18,7 @@ func init() {
 		Path:      config.BaseDBPath + parts[1],
 		ID:        consts.NodeAddr,
 		RemakeDir: config.RemakeDir,
+		Weight:    consts.Weight,
 	}
 
 	var err error
