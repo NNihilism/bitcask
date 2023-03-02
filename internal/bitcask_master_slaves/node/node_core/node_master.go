@@ -241,7 +241,8 @@ func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*
 	})
 
 	return &node.GetAllNodesInfoResp{
-		Infos: infos,
+		Infos:          infos,
+		LastUpdateTime: bitcaskNode.infosLastUpdateTime,
 	}, nil
 }
 
