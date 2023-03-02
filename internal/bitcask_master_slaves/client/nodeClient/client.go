@@ -44,10 +44,10 @@ func NewClient(network, host, port string) *Client {
 		input:     bufio.NewReader(os.Stdin),
 		result:    make(chan string, 1),
 		Done:      make(chan struct{}, 1),
-		// serverOpts: ServerOptions{
-		// 	host: host,
-		// 	port: port,
-		// },
+		serverOpts: ServerOptions{
+			host: host,
+			port: port,
+		},
 	}
 }
 
