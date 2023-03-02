@@ -13,40 +13,46 @@ import (
 
 // 异步更新
 func (bitcaskNode *BitcaskNode) AsynchronousSync(req *node.LogEntryRequest) {
-	bitcaskNode.slavesRpc.Range(func(iSlaveId, iRpc interface{}) bool {
-		slaveId, _ := iSlaveId.(string)
-		rpc, _ := iRpc.(nodeservice.Client)
-
+	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
+		info, ok := iInfo.(slaveInfo)
+		if !ok {
+			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
+			return true
+		}
 		// 子节点正在进行全量/增量复制
-		if status, ok := bitcaskNode.getSlaveStatus(slaveId); !ok || status != nodeInIdle {
-			log.Infof("slave[%s] is not idle", slaveId)
+		if info.status != nodeInIdle {
+			log.Infof("slave[%s] is not idle", info.id)
 			// TODO 在这里将req写入对应slave的缓存
 			return true
 		}
 
+		rpc := info.rpc
 		ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
 		rpc.OpLogEntry(ctx, req)
 		return true
 	})
-
 }
 
 // 半同步更新
 func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
-
 	wg := new(sync.WaitGroup)
 	semi_cnt := int(float64(bitcaskNode.cf.ConnectedSlaves) * config.SemiSynchronousRate)
 	wg.Add(semi_cnt)
 
-	bitcaskNode.slavesRpc.Range(func(iSlaveId, iRpc interface{}) bool {
-		slaveId, _ := iSlaveId.(string)
-		rpc, _ := iRpc.(nodeservice.Client)
-
+	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
+		info, ok := iInfo.(slaveInfo)
+		if !ok {
+			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
+			return true
+		}
 		// 子节点正在进行全量/增量复制
-		if status, ok := bitcaskNode.getSlaveStatus(slaveId); !ok || status != nodeInIdle {
+		if info.status != nodeInIdle {
+			log.Infof("slave[%s] is not idle", info.id)
+			// TODO 在这里将req写入对应slave的缓存
 			return true
 		}
 
+		rpc := info.rpc
 		go func(rpc nodeservice.Client) {
 			defer wg.Done()
 			ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
@@ -61,17 +67,20 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 
 // 同步更新
 func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
-	bitcaskNode.slavesRpc.Range(func(iSlaveId, iRpc interface{}) bool {
-		slaveId, _ := iSlaveId.(string)
-		rpc, _ := iRpc.(nodeservice.Client)
-
+	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
+		info, ok := iInfo.(slaveInfo)
+		if !ok {
+			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
+			return true
+		}
 		// 子节点正在进行全量/增量复制
-		if status, ok := bitcaskNode.getSlaveStatus(slaveId); !ok || status != nodeInIdle {
-			log.Infof("slave[%s] is not idle", slaveId)
-
+		if info.status != nodeInIdle {
+			log.Infof("slave[%s] is not idle", info.id)
+			// TODO 在这里将req写入对应slave的缓存
 			return true
 		}
 
+		rpc := info.rpc
 		ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
 		rpc.OpLogEntry(ctx, req)
 		return true

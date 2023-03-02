@@ -31,19 +31,22 @@ type syncChanItem struct {
 type slaveInfo struct {
 	address string
 	id      string
+	status  nodeSynctatusCode
 	weight  int
+	rpc     nodeservice.Client
+	// replicationBuffer
 }
 
 type BitcaskNode struct {
 	db *bitcask.BitcaskDB
 	cf *config.NodeConfig
 
-	slaveInfoMu       *sync.RWMutex
-	slavesRpc         sync.Map
-	slavesStatus      sync.Map
-	slavesInfo        []*slaveInfo
-	replicationBuffer sync.Map
-	masterRpc         nodeservice.Client
+	slaveInfoMu *sync.RWMutex
+	// slavesRpc    sync.Map
+	// slavesStatus sync.Map
+	slavesInfo sync.Map
+	// replicationBuffer sync.Map
+	masterRpc nodeservice.Client
 
 	cacheMu       *sync.Mutex
 	replBakBuffer *lru.Cache // 主节点用于存储最近收到的写命令，供从节点进行增量复制
