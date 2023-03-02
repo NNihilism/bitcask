@@ -64,7 +64,7 @@ func BuildBaseResp(code node.ErrCode, err error) *node.BaseResp {
 		err = errno.Success
 	}
 	return &node.BaseResp{
-		StatusCode:    int64(node.ErrCode_SuccessCode),
+		StatusCode:    int64(code),
 		StatusMessage: err.Error(),
 		ServiceTime:   time.Now().Unix()}
 }
