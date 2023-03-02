@@ -1,6 +1,7 @@
 package errno
 
 import (
+	"bitcaskDB/internal/bitcask_master_slaves/node/config"
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node"
 	"bytes"
 	"errors"
@@ -22,6 +23,7 @@ const (
 	ErrCodeParseResp
 	ErrCodeSyntax
 	ErrCodeWriteOnSlave
+	ErrAlreadySlave
 )
 
 var (
@@ -98,4 +100,13 @@ func newErrUnknownCMD(cmd string, args [][]byte) error {
 
 func newErrParseResp(obj interface{}) error {
 	return fmt.Errorf("ERR parse resp [%v] err", obj)
+}
+
+func NewErrAlreadeSlave(addr, id string) error {
+	return fmt.Errorf("(error) Already a slave node of node [ip:% s, runid:% s]", addr, id)
+}
+
+func NewErrSlaveOnIllegalTopo() error {
+	return fmt.Errorf("(error) apply to be a slave node of a non-master node under topology [%s]", config.RoleNameMap[config.Role(config.NodeTopology)])
+
 }
