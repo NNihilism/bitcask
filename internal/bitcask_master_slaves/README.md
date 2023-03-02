@@ -73,6 +73,21 @@
     4. 开启代理实例，代理会根据配置文件中的地址去与bitcask_node节点进行连接，并查看是否只有一个主节点，若是，则代理启动成功
     5. 开启HA模块（可能有）,HA与代理相同，与节点逐个进行连接
 
+### 讨论
+#### 1. 是否需要代理
+  在go-redis中是没有代理这一层的，由client直接配置集群信息，代码如下
+  ```
+  rdb := redis.NewFailoverClient(&redis.FailoverOptions{
+    MasterName:    "master-name",
+    SentinelAddrs: []string{":9126", ":9127", ":9128"},
+})
+  ```
+  比起代理模式，这样做的好处的会减少一次网络请求的转发，然而，这样做的不足就是，不容易对节点的变更及时察觉。无论是选择让客户端不断地询问主节点信息是否变更，还是让服务端主动的通知客户端变更信息，当客户端数量上来后，都会给服务端造成不小的压力，原因就是客户端与主节点直接相连。  
+  而使用代理模式，则能缓解上述问题，无论节点信息如何改变，主节点都只需要与代理节点进行通信。
+
+#### 2. 如何保证并发安全
+
+
 
 redis主从分析 ：https://help.aliyun.com/document_detail/65001.html
 redis主从使用 ：https://blog.csdn.net/weixin_40980639/article/details/125569460
