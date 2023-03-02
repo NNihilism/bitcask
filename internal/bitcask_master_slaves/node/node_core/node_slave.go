@@ -69,10 +69,7 @@ func (bitcaskNode *BitcaskNode) SendSlaveOfReq(req *node.SendSlaveofRequest) (re
 // 从节点给主节点发送PsyncReq请求
 func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 	log.Infof("MASTER <-> REPLICA sync started")
-	// 处于同步状态,还是可能出发数据请求,是否重复则由服务端判断
-	// if bitcaskNode.syncStatus != nodeInIdle {
-	// return
-	// }
+
 	resp, err := bitcaskNode.masterRpc.PSyncReq(context.Background(), &node.PSyncRequest{
 		MasterId: bitcaskNode.cf.MasterId,
 		SlaveId:  bitcaskNode.cf.ID,
@@ -81,13 +78,15 @@ func (bitcaskNode *BitcaskNode) sendPSyncReq() {
 	if err != nil {
 		return
 	}
-	// 可能已经申请过了
+
 	if resp.Code == int8(config.Fail) {
 		return
 	}
+
 	if resp.Code != int8(config.IncreReplSync) {
 		log.Infof("Partial resynchronization not possible (no cached master)")
 	}
+
 	if resp.Code == int8(config.FullReplSync) {
 		bitcaskNode.syncStatus = nodeInFullRepl // 只有全量复制时才开启这个变量，开启后对于写请求不会对序列号进行判断，而是直接写入
 		bitcaskNode.resetReplication(true)
@@ -111,28 +110,6 @@ func (bitcaskNode *BitcaskNode) sendPSyncReady() {
 	}
 }
 
-// Slave增量复制失败
-// TODO 可删
-// func (bitcaskNode *BitcaskNode) HandleRepFailNotify(masterId string) (bool, error) {
-// 	// 请求全量复制
-// 	// 改变状态
-// 	bitcaskNode.syncStatus = nodeInFullRepl
-// 	// 发送请求
-// 	resp, err := bitcaskNode.masterRpc.PSync(context.Background(), &node.PSyncRequest{
-// 		MasterId: bitcaskNode.cf.MasterId,
-// 		Offset:   -1,
-// 		SlaveId:  bitcaskNode.cf.ID,
-// 	})
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	if resp.Code != int8(config.FullReplSync) {
-// 		return false, err
-// 	}
-// 	bitcaskNode.cf.CurReplicationOffset = 0 // 进度清0
-// 	return true, nil
-// }
-
 // Slave接收到复制结束通知
 func (bitcaskNode *BitcaskNode) HandleReplFinishNotify(req *node.ReplFinishNotifyReq) (bool, error) {
 	if req.Ok {
@@ -142,7 +119,6 @@ func (bitcaskNode *BitcaskNode) HandleReplFinishNotify(req *node.ReplFinishNotif
 			// 如果是全量复制结束 则需要校验下最后收到的id是否正确,如果正确,则修改offset
 			if req.LastEntryId != int64(bitcaskNode.cf.CurReplicationOffset) {
 				log.Errorf("full replication error. 'LastEntryId' does not match.  LastEntryId : [%d], CurReplicationOffset : [%d]", req.LastEntryId, bitcaskNode.cf.CurReplicationOffset)
-				// TODO 可以考虑让Master移除该节点?
 				return false, nil
 			}
 			bitcaskNode.cf.CurReplicationOffset = int(req.MasterOffset)

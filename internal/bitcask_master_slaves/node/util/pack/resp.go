@@ -40,7 +40,6 @@ func BuildOpLogEntryResp(vi interface{}) (interface{}, error) {
 	case reflect.Int:
 		info = fmt.Sprintf("(integer) %d", vi.(int))
 	case reflect.Int64:
-		// valStr := strconv.Itoa(int(vi.(int64)))
 		info = fmt.Sprintf("(integer) %d", vi.(int64))
 	case reflect.Float64:
 		info = fmt.Sprintf("\"%f\"", vi.(float64))
@@ -56,11 +55,11 @@ func BuildOpLogEntryResp(vi interface{}) (interface{}, error) {
 	}
 
 	resp.Info = info
-	resp.BaseResp = BuildBaseResp(nil)
+	resp.BaseResp = BuildBaseResp(node.ErrCode_SuccessCode, nil)
 	return resp, nil
 }
 
-func BuildBaseResp(err error) *node.BaseResp {
+func BuildBaseResp(code node.ErrCode, err error) *node.BaseResp {
 	if err == nil {
 		err = errno.Success
 	}

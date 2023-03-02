@@ -13,7 +13,6 @@ func sAdd(bitcaskNode *BitcaskNode, args [][]byte) (interface{}, error) {
 		return nil, errno.NewErr(errno.ErrCodeWrongArgsNumber, &errno.ErrInfo{Cmd: "sadd"})
 	}
 	return bitcaskNode.db.SAdd(args[0], args[1:]...)
-	// return resultOK, nil
 }
 
 func sRem(bitcaskNode *BitcaskNode, args [][]byte) (interface{}, error) {
