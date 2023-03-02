@@ -1,7 +1,10 @@
 package consts
 
 const (
-	NodeAddr        = ":8990"
-	TCP             = "tcp"
-	NodeServiceName = "node"
+	NodeAddr         = ":8992"
+	ProxyAddr        = ":9958"
+	TCP              = "tcp"
+	NodeServiceName  = "node"
+	ProxyServiceName = "proxyService"
+	Weight           = 3
 )
