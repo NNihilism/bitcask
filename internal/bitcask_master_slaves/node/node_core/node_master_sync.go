@@ -14,7 +14,7 @@ import (
 // 异步更新
 func (bitcaskNode *BitcaskNode) AsynchronousSync(req *node.LogEntryRequest) {
 	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
-		info, ok := iInfo.(slaveInfo)
+		info, ok := iInfo.(*slaveInfo)
 		if !ok {
 			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
 			return true
@@ -40,7 +40,7 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 	wg.Add(semi_cnt)
 
 	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
-		info, ok := iInfo.(slaveInfo)
+		info, ok := iInfo.(*slaveInfo)
 		if !ok {
 			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
 			return true
@@ -54,6 +54,7 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 
 		rpc := info.rpc
 		go func(rpc nodeservice.Client) {
+			// TODO done会报异常
 			defer wg.Done()
 			ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
 			rpc.OpLogEntry(ctx, req)
@@ -68,7 +69,7 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 // 同步更新
 func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
-		info, ok := iInfo.(slaveInfo)
+		info, ok := iInfo.(*slaveInfo)
 		if !ok {
 			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
 			return true
@@ -77,6 +78,7 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 		if info.status != nodeInIdle {
 			log.Infof("slave[%s] is not idle", info.id)
 			// TODO 在这里将req写入对应slave的缓存
+			bitcaskNode.writeToBuffer(info.id, req)
 			return true
 		}
 
@@ -90,12 +92,8 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 // 全量复制
 func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	defer func() {
-		log.Infof("defer() : status : [%v]", nodeInIdle)
 		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 	}()
-
-	// 记录下此时的offset
-	curMasterOffset := bitcaskNode.cf.CurReplicationOffset
 
 	// 数据解析与数据发送可以并发执行
 	wg := sync.WaitGroup{}
@@ -103,12 +101,15 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	syncChan := make(chan syncChanItem, config.SyncChanSize)
 	go bitcaskNode.SyncLogEntryToSlave(&wg, syncChan)
 
-	var tmp_entry_id int64 = 1 // 供slave校验用,记录发送的记录个数是否正确
-
+	// 由于没有快照功能 因此下面这段扫描代码需要上一个”全局锁“
+	bitcaskNode.mu.Lock()
+	var tmp_entry_id int64 = 1                             // 供slave校验用,记录发送的记录个数是否正确
+	curMasterOffset := bitcaskNode.cf.CurReplicationOffset // 记录下此时的offset
 	// 发送所有string类型的数据
 	keys, err := bitcaskNode.db.GetStrsKeys()
 	if err != nil {
 		log.Errorf("GetStrsKeys err [%v]", err)
+		bitcaskNode.mu.Unlock()
 		return
 	}
 	for _, key := range keys {
@@ -128,6 +129,8 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	keys, err = bitcaskNode.db.GetListKeys()
 	if err != nil {
 		log.Errorf("GetListKeys err [%v]", err)
+		bitcaskNode.mu.Unlock()
+
 		return
 	}
 	for _, key := range keys {
@@ -147,6 +150,8 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	keys, err = bitcaskNode.db.HKeys()
 	if err != nil {
 		log.Errorf("GetHashKeys err [%v]", err)
+		bitcaskNode.mu.Unlock()
+
 		return
 	}
 	for _, key := range keys {
@@ -167,6 +172,8 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	keys, err = bitcaskNode.db.GetSetKeys()
 	if err != nil {
 		log.Errorf("GetSetKeys err [%v]", err)
+		bitcaskNode.mu.Unlock()
+
 		return
 	}
 	for _, key := range keys {
@@ -200,18 +207,19 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 			}
 		}
 	}
+	log.Info("MASTER :  Data parsing completed.")
+	bitcaskNode.mu.Unlock() // "快照部分结束"
 
 	// 通知 全量复制完成/失败 客户端再决定要干嘛
 	rpc, ok := bitcaskNode.getSlaveRPC(slaveId)
 	if !ok {
 		return
 	}
-	log.Info("server finish sending all req to channel, and waiting....")
 	close(syncChan)
 	wg.Wait() // 等待数据都发送完了再通知 不然slave可能先收到结束通知导致不接收尚未发送完的数据
-	log.Info("server finish sending!")
-	// TODO 刷新缓冲区内数据
-	bitcaskNode.FlushOpReqBuffer(slaveId)
+
+	bitcaskNode.flushAndUpdate(slaveId)
+	// bitcaskNode.FlushOpReqBuffer(slaveId)
 	ok, err = rpc.ReplFinishNotify(context.Background(), &node.ReplFinishNotifyReq{
 		Ok:           true,
 		SyncType:     int8(config.FullReplSync),
@@ -260,6 +268,7 @@ func (bitcaskNode *BitcaskNode) SyncLogEntryToSlave(wg *sync.WaitGroup, syncChan
 		select {
 		case reqPack, ok := <-syncChan:
 			if !ok {
+				log.Info("MASTER :  Data transmission  completed.")
 				return
 			}
 			// log.Info("读取reqPack. req : [%v], id : [%v]", reqPack.req, reqPack.slaveId)
@@ -389,13 +398,39 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 
 // 只有请求全量复制的slave才会发送这个PSyncReady请求
 func (bitcaskNode *BitcaskNode) HandlePSyncReady(req *node.PSyncRequest) (*node.PSyncResponse, error) {
-
-	resp := new(node.PSyncResponse)
+	resp := &node.PSyncResponse{
+		Code: int8(config.FullReplSync),
+	}
 	go bitcaskNode.FullReplication(req.SlaveId)
-
 	return resp, nil
-
 }
-func (bitcaskNode *BitcaskNode) FlushOpReqBuffer(slaveId string) {
-	// TODO 用于将缓冲区内容刷新
+
+func (bitcaskNode *BitcaskNode) flushAndUpdate(slaveId string) {
+	info, ok := bitcaskNode.getSlaveInfo(slaveId)
+	if !ok {
+		return
+	}
+
+	info.mu.Lock()
+	defer info.mu.Unlock()
+	bitcaskNode.flushOpReqBuffer(info)
+	bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
+}
+func (bitcaskNode *BitcaskNode) flushOpReqBuffer(info *slaveInfo) {
+	rpc := info.rpc
+	for i := 0; i < len(info.buffer.buf); i++ {
+		rpc.OpLogEntry(context.Background(), info.buffer.buf[i])
+	}
+}
+
+func (bitcaskNode *BitcaskNode) writeToBuffer(slaveId string, req *node.LogEntryRequest) {
+	info, ok := bitcaskNode.getSlaveInfo(slaveId)
+	if !ok {
+		return
+	}
+
+	// info.buffer.mu.Lock()
+	// defer info.buffer.mu.Unlock()
+
+	info.buffer.buf = append(info.buffer.buf, req)
 }
