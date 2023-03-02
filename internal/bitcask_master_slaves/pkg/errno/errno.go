@@ -82,7 +82,7 @@ func newSyntaxErr() error {
 }
 
 func newWriteOnSlaveErr() error {
-	return errors.New("ERR write on slave node")
+	return errors.New("READONLY You can't write against a read only replica")
 }
 
 func newWrongNumOfArgsError(cmd string) error {
