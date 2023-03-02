@@ -85,6 +85,9 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 	}()
 
+	// 记录下此时的offset
+	curMasterOffset := bitcaskNode.cf.CurReplicationOffset
+
 	// 数据解析与数据发送可以并发执行
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -198,11 +201,13 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	close(syncChan)
 	wg.Wait() // 等待数据都发送完了再通知 不然slave可能先收到结束通知导致不接收尚未发送完的数据
 	log.Info("server finish sending!")
+	// TODO 刷新缓冲区内数据
+	bitcaskNode.FlushOpReqBuffer(slaveId)
 	ok, err = rpc.ReplFinishNotify(context.Background(), &node.ReplFinishNotifyReq{
 		Ok:           true,
 		SyncType:     int8(config.FullReplSync),
 		LastEntryId:  tmp_entry_id - 1, // 供slave校验用
-		MasterOffset: int64(bitcaskNode.cf.CurReplicationOffset),
+		MasterOffset: int64(curMasterOffset),
 	})
 
 	// err或者不ok 都移除该异常节点
@@ -382,6 +387,6 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReady(req *node.PSyncRequest) (*node.
 	return resp, nil
 
 }
-func (bitcaskNode *BitcaskNode) FlushOpReqBuffer() {
+func (bitcaskNode *BitcaskNode) FlushOpReqBuffer(slaveId string) {
 	// TODO 用于将缓冲区内容刷新
 }
