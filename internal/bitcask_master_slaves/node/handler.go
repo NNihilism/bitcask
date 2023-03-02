@@ -68,3 +68,8 @@ func (s *NodeServiceImpl) PSyncReady(ctx context.Context, req *node.PSyncRequest
 func (s *NodeServiceImpl) GetAllNodesInfo(ctx context.Context, req *node.GetAllNodesInfoReq) (resp *node.GetAllNodesInfoResp, err error) {
 	return bitcaskNode.GetAllNodesInfo(req)
 }
+
+// IsAlive implements the NodeServiceImpl interface.
+func (s *NodeServiceImpl) IsAlive(ctx context.Context) (resp bool, err error) {
+	return true, nil
+}

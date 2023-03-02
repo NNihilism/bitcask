@@ -12,6 +12,7 @@ import (
 // Client is designed to provide IDL-compatible methods with call-option parameter for kitex framework.
 type Client interface {
 	ReplFinishNotify(ctx context.Context, req *node.ReplFinishNotifyReq, callOptions ...callopt.Option) (r bool, err error)
+	IsAlive(ctx context.Context, callOptions ...callopt.Option) (r bool, err error)
 	RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest, callOptions ...callopt.Option) (r *node.RegisterSlaveResponse, err error)
 	PSyncReq(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error)
 	PSyncReady(ctx context.Context, req *node.PSyncRequest, callOptions ...callopt.Option) (r *node.PSyncResponse, err error)
@@ -54,6 +55,11 @@ type kNodeServiceClient struct {
 func (p *kNodeServiceClient) ReplFinishNotify(ctx context.Context, req *node.ReplFinishNotifyReq, callOptions ...callopt.Option) (r bool, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.ReplFinishNotify(ctx, req)
+}
+
+func (p *kNodeServiceClient) IsAlive(ctx context.Context, callOptions ...callopt.Option) (r bool, err error) {
+	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
+	return p.kClient.IsAlive(ctx)
 }
 
 func (p *kNodeServiceClient) RegisterSlave(ctx context.Context, req *node.RegisterSlaveRequest, callOptions ...callopt.Option) (r *node.RegisterSlaveResponse, err error) {

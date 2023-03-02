@@ -42,6 +42,7 @@ const (
 	NodeTopology                = Star
 	SyncType                    = Asynchronous
 	SemiSynchronousRate float64 = 0.5 // 需要进行同步更新的比例
+	MasterHeartBeatFreq         = 10  // s
 	SyncChanSize                = 100
 	RemakeDir                   = false // 创建数据库时 是否需要把原来的数据库删除
 )

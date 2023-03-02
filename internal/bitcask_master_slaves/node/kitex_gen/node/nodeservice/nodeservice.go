@@ -20,6 +20,7 @@ func NewServiceInfo() *kitex.ServiceInfo {
 	handlerType := (*node.NodeService)(nil)
 	methods := map[string]kitex.MethodInfo{
 		"ReplFinishNotify": kitex.NewMethodInfo(replFinishNotifyHandler, newNodeServiceReplFinishNotifyArgs, newNodeServiceReplFinishNotifyResult, false),
+		"IsAlive":          kitex.NewMethodInfo(isAliveHandler, newNodeServiceIsAliveArgs, newNodeServiceIsAliveResult, false),
 		"RegisterSlave":    kitex.NewMethodInfo(registerSlaveHandler, newNodeServiceRegisterSlaveArgs, newNodeServiceRegisterSlaveResult, false),
 		"PSyncReq":         kitex.NewMethodInfo(pSyncReqHandler, newNodeServicePSyncReqArgs, newNodeServicePSyncReqResult, false),
 		"PSyncReady":       kitex.NewMethodInfo(pSyncReadyHandler, newNodeServicePSyncReadyArgs, newNodeServicePSyncReadyResult, false),
@@ -59,6 +60,24 @@ func newNodeServiceReplFinishNotifyArgs() interface{} {
 
 func newNodeServiceReplFinishNotifyResult() interface{} {
 	return node.NewNodeServiceReplFinishNotifyResult()
+}
+
+func isAliveHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+
+	realResult := result.(*node.NodeServiceIsAliveResult)
+	success, err := handler.(node.NodeService).IsAlive(ctx)
+	if err != nil {
+		return err
+	}
+	realResult.Success = &success
+	return nil
+}
+func newNodeServiceIsAliveArgs() interface{} {
+	return node.NewNodeServiceIsAliveArgs()
+}
+
+func newNodeServiceIsAliveResult() interface{} {
+	return node.NewNodeServiceIsAliveResult()
 }
 
 func registerSlaveHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
@@ -220,6 +239,15 @@ func (p *kClient) ReplFinishNotify(ctx context.Context, req *node.ReplFinishNoti
 	_args.Req = req
 	var _result node.NodeServiceReplFinishNotifyResult
 	if err = p.c.Call(ctx, "ReplFinishNotify", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+
+func (p *kClient) IsAlive(ctx context.Context) (r bool, err error) {
+	var _args node.NodeServiceIsAliveArgs
+	var _result node.NodeServiceIsAliveResult
+	if err = p.c.Call(ctx, "IsAlive", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

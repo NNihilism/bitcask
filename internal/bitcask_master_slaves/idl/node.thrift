@@ -131,12 +131,10 @@ struct GetAllNodesInfoResp {
 }
 
 service NodeService {
-    # for client
-    # for other node
-
     # master -> slave
     bool ReplFinishNotify(ReplFinishNotifyReq req)
-
+    bool IsAlive()
+    
     # slave -> master
     RegisterSlaveResponse RegisterSlave(1: RegisterSlaveRequest req)
     PSyncResponse PSyncReq(1: PSyncRequest req) // slave发起请求

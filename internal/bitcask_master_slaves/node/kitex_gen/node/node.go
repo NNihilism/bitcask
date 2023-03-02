@@ -4517,6 +4517,8 @@ func (p *GetAllNodesInfoResp) Field1DeepEqual(src []*SlaveInfo) bool {
 type NodeService interface {
 	ReplFinishNotify(ctx context.Context, req *ReplFinishNotifyReq) (r bool, err error)
 
+	IsAlive(ctx context.Context) (r bool, err error)
+
 	RegisterSlave(ctx context.Context, req *RegisterSlaveRequest) (r *RegisterSlaveResponse, err error)
 
 	PSyncReq(ctx context.Context, req *PSyncRequest) (r *PSyncResponse, err error)
@@ -4565,6 +4567,14 @@ func (p *NodeServiceClient) ReplFinishNotify(ctx context.Context, req *ReplFinis
 	_args.Req = req
 	var _result NodeServiceReplFinishNotifyResult
 	if err = p.Client_().Call(ctx, "ReplFinishNotify", &_args, &_result); err != nil {
+		return
+	}
+	return _result.GetSuccess(), nil
+}
+func (p *NodeServiceClient) IsAlive(ctx context.Context) (r bool, err error) {
+	var _args NodeServiceIsAliveArgs
+	var _result NodeServiceIsAliveResult
+	if err = p.Client_().Call(ctx, "IsAlive", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil
@@ -4661,6 +4671,7 @@ func (p *NodeServiceProcessor) ProcessorMap() map[string]thrift.TProcessorFuncti
 func NewNodeServiceProcessor(handler NodeService) *NodeServiceProcessor {
 	self := &NodeServiceProcessor{handler: handler, processorMap: make(map[string]thrift.TProcessorFunction)}
 	self.AddToProcessorMap("ReplFinishNotify", &nodeServiceProcessorReplFinishNotify{handler: handler})
+	self.AddToProcessorMap("IsAlive", &nodeServiceProcessorIsAlive{handler: handler})
 	self.AddToProcessorMap("RegisterSlave", &nodeServiceProcessorRegisterSlave{handler: handler})
 	self.AddToProcessorMap("PSyncReq", &nodeServiceProcessorPSyncReq{handler: handler})
 	self.AddToProcessorMap("PSyncReady", &nodeServiceProcessorPSyncReady{handler: handler})
@@ -4720,6 +4731,54 @@ func (p *nodeServiceProcessorReplFinishNotify) Process(ctx context.Context, seqI
 		result.Success = &retval
 	}
 	if err2 = oprot.WriteMessageBegin("ReplFinishNotify", thrift.REPLY, seqId); err2 != nil {
+		err = err2
+	}
+	if err2 = result.Write(oprot); err == nil && err2 != nil {
+		err = err2
+	}
+	if err2 = oprot.WriteMessageEnd(); err == nil && err2 != nil {
+		err = err2
+	}
+	if err2 = oprot.Flush(ctx); err == nil && err2 != nil {
+		err = err2
+	}
+	if err != nil {
+		return
+	}
+	return true, err
+}
+
+type nodeServiceProcessorIsAlive struct {
+	handler NodeService
+}
+
+func (p *nodeServiceProcessorIsAlive) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+	args := NodeServiceIsAliveArgs{}
+	if err = args.Read(iprot); err != nil {
+		iprot.ReadMessageEnd()
+		x := thrift.NewTApplicationException(thrift.PROTOCOL_ERROR, err.Error())
+		oprot.WriteMessageBegin("IsAlive", thrift.EXCEPTION, seqId)
+		x.Write(oprot)
+		oprot.WriteMessageEnd()
+		oprot.Flush(ctx)
+		return false, err
+	}
+
+	iprot.ReadMessageEnd()
+	var err2 error
+	result := NodeServiceIsAliveResult{}
+	var retval bool
+	if retval, err2 = p.handler.IsAlive(ctx); err2 != nil {
+		x := thrift.NewTApplicationException(thrift.INTERNAL_ERROR, "Internal error processing IsAlive: "+err2.Error())
+		oprot.WriteMessageBegin("IsAlive", thrift.EXCEPTION, seqId)
+		x.Write(oprot)
+		oprot.WriteMessageEnd()
+		oprot.Flush(ctx)
+		return true, err2
+	} else {
+		result.Success = &retval
+	}
+	if err2 = oprot.WriteMessageBegin("IsAlive", thrift.REPLY, seqId); err2 != nil {
 		err = err2
 	}
 	if err2 = result.Write(oprot); err == nil && err2 != nil {
@@ -5461,6 +5520,280 @@ func (p *NodeServiceReplFinishNotifyResult) DeepEqual(ano *NodeServiceReplFinish
 }
 
 func (p *NodeServiceReplFinishNotifyResult) Field0DeepEqual(src *bool) bool {
+
+	if p.Success == src {
+		return true
+	} else if p.Success == nil || src == nil {
+		return false
+	}
+	if *p.Success != *src {
+		return false
+	}
+	return true
+}
+
+type NodeServiceIsAliveArgs struct {
+}
+
+func NewNodeServiceIsAliveArgs() *NodeServiceIsAliveArgs {
+	return &NodeServiceIsAliveArgs{}
+}
+
+func (p *NodeServiceIsAliveArgs) InitDefault() {
+	*p = NodeServiceIsAliveArgs{}
+}
+
+var fieldIDToName_NodeServiceIsAliveArgs = map[int16]string{}
+
+func (p *NodeServiceIsAliveArgs) Read(iprot thrift.TProtocol) (err error) {
+
+	var fieldTypeId thrift.TType
+	var fieldId int16
+
+	if _, err = iprot.ReadStructBegin(); err != nil {
+		goto ReadStructBeginError
+	}
+
+	for {
+		_, fieldTypeId, fieldId, err = iprot.ReadFieldBegin()
+		if err != nil {
+			goto ReadFieldBeginError
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+		if err = iprot.Skip(fieldTypeId); err != nil {
+			goto SkipFieldTypeError
+		}
+
+		if err = iprot.ReadFieldEnd(); err != nil {
+			goto ReadFieldEndError
+		}
+	}
+	if err = iprot.ReadStructEnd(); err != nil {
+		goto ReadStructEndError
+	}
+
+	return nil
+ReadStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct begin error: ", p), err)
+ReadFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
+SkipFieldTypeError:
+	return thrift.PrependError(fmt.Sprintf("%T skip field type %d error", p, fieldTypeId), err)
+
+ReadFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
+ReadStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *NodeServiceIsAliveArgs) Write(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteStructBegin("IsAlive_args"); err != nil {
+		goto WriteStructBeginError
+	}
+	if p != nil {
+
+	}
+	if err = oprot.WriteFieldStop(); err != nil {
+		goto WriteFieldStopError
+	}
+	if err = oprot.WriteStructEnd(); err != nil {
+		goto WriteStructEndError
+	}
+	return nil
+WriteStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
+WriteFieldStopError:
+	return thrift.PrependError(fmt.Sprintf("%T write field stop error: ", p), err)
+WriteStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
+}
+
+func (p *NodeServiceIsAliveArgs) String() string {
+	if p == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("NodeServiceIsAliveArgs(%+v)", *p)
+}
+
+func (p *NodeServiceIsAliveArgs) DeepEqual(ano *NodeServiceIsAliveArgs) bool {
+	if p == ano {
+		return true
+	} else if p == nil || ano == nil {
+		return false
+	}
+	return true
+}
+
+type NodeServiceIsAliveResult struct {
+	Success *bool `thrift:"success,0,optional" frugal:"0,optional,bool" json:"success,omitempty"`
+}
+
+func NewNodeServiceIsAliveResult() *NodeServiceIsAliveResult {
+	return &NodeServiceIsAliveResult{}
+}
+
+func (p *NodeServiceIsAliveResult) InitDefault() {
+	*p = NodeServiceIsAliveResult{}
+}
+
+var NodeServiceIsAliveResult_Success_DEFAULT bool
+
+func (p *NodeServiceIsAliveResult) GetSuccess() (v bool) {
+	if !p.IsSetSuccess() {
+		return NodeServiceIsAliveResult_Success_DEFAULT
+	}
+	return *p.Success
+}
+func (p *NodeServiceIsAliveResult) SetSuccess(x interface{}) {
+	p.Success = x.(*bool)
+}
+
+var fieldIDToName_NodeServiceIsAliveResult = map[int16]string{
+	0: "success",
+}
+
+func (p *NodeServiceIsAliveResult) IsSetSuccess() bool {
+	return p.Success != nil
+}
+
+func (p *NodeServiceIsAliveResult) Read(iprot thrift.TProtocol) (err error) {
+
+	var fieldTypeId thrift.TType
+	var fieldId int16
+
+	if _, err = iprot.ReadStructBegin(); err != nil {
+		goto ReadStructBeginError
+	}
+
+	for {
+		_, fieldTypeId, fieldId, err = iprot.ReadFieldBegin()
+		if err != nil {
+			goto ReadFieldBeginError
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+
+		switch fieldId {
+		case 0:
+			if fieldTypeId == thrift.BOOL {
+				if err = p.ReadField0(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		default:
+			if err = iprot.Skip(fieldTypeId); err != nil {
+				goto SkipFieldError
+			}
+		}
+
+		if err = iprot.ReadFieldEnd(); err != nil {
+			goto ReadFieldEndError
+		}
+	}
+	if err = iprot.ReadStructEnd(); err != nil {
+		goto ReadStructEndError
+	}
+
+	return nil
+ReadStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct begin error: ", p), err)
+ReadFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
+ReadFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_NodeServiceIsAliveResult[fieldId]), err)
+SkipFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
+
+ReadFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
+ReadStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *NodeServiceIsAliveResult) ReadField0(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadBool(); err != nil {
+		return err
+	} else {
+		p.Success = &v
+	}
+	return nil
+}
+
+func (p *NodeServiceIsAliveResult) Write(oprot thrift.TProtocol) (err error) {
+	var fieldId int16
+	if err = oprot.WriteStructBegin("IsAlive_result"); err != nil {
+		goto WriteStructBeginError
+	}
+	if p != nil {
+		if err = p.writeField0(oprot); err != nil {
+			fieldId = 0
+			goto WriteFieldError
+		}
+
+	}
+	if err = oprot.WriteFieldStop(); err != nil {
+		goto WriteFieldStopError
+	}
+	if err = oprot.WriteStructEnd(); err != nil {
+		goto WriteStructEndError
+	}
+	return nil
+WriteStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
+WriteFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T write field %d error: ", p, fieldId), err)
+WriteFieldStopError:
+	return thrift.PrependError(fmt.Sprintf("%T write field stop error: ", p), err)
+WriteStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
+}
+
+func (p *NodeServiceIsAliveResult) writeField0(oprot thrift.TProtocol) (err error) {
+	if p.IsSetSuccess() {
+		if err = oprot.WriteFieldBegin("success", thrift.BOOL, 0); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteBool(*p.Success); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 0 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 0 end error: ", p), err)
+}
+
+func (p *NodeServiceIsAliveResult) String() string {
+	if p == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("NodeServiceIsAliveResult(%+v)", *p)
+}
+
+func (p *NodeServiceIsAliveResult) DeepEqual(ano *NodeServiceIsAliveResult) bool {
+	if p == ano {
+		return true
+	} else if p == nil || ano == nil {
+		return false
+	}
+	if !p.Field0DeepEqual(ano.Success) {
+		return false
+	}
+	return true
+}
+
+func (p *NodeServiceIsAliveResult) Field0DeepEqual(src *bool) bool {
 
 	if p.Success == src {
 		return true

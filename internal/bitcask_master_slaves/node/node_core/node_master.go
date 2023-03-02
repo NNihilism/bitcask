@@ -6,6 +6,7 @@ import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node/nodeservice"
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/consts"
 	"bitcaskDB/internal/log"
+	"context"
 	"fmt"
 	"time"
 
@@ -63,6 +64,9 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 		weight:  int(req.Weight),
 	})
 
+	// 3. 开启心跳检测
+	go bitcaskNode.checkSlavesAlive(*time.NewTicker(time.Second * config.MasterHeartBeatFreq))
+
 	// 返回结果
 	return &node.RegisterSlaveResponse{
 		BaseResp: &node.BaseResp{
@@ -109,6 +113,9 @@ func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nod
 }
 
 func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
+	bitcaskNode.slaveInfoMu.Lock()
+	defer bitcaskNode.slaveInfoMu.Unlock()
+
 	bitcaskNode.cf.ConnectedSlaves--
 	bitcaskNode.slavesRpc.Delete(slaveId)
 	bitcaskNode.slavesStatus.Delete(slaveId)
@@ -210,4 +217,27 @@ func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*
 		// Slavesid:     slavesId,
 		Infos: infos,
 	}, nil
+}
+
+func (bitcaskNode *BitcaskNode) checkSlavesAlive(ticker time.Ticker) {
+	for range ticker.C {
+		// 非星型拓扑结构下，从节点不该有子节点
+		if bitcaskNode.cf.Role == config.Slave && config.NodeTopology != config.Line {
+			ticker.Stop()
+			return
+		}
+		bitcaskNode.slavesRpc.Range(func(id, iRpc interface{}) bool {
+			rpc, ok := iRpc.(nodeservice.Client)
+			if !ok {
+				log.Errorf("convert iprc[%v] to nodeservice.Client err", iRpc)
+				return true
+			}
+			alive, err := rpc.IsAlive(context.Background())
+			if err != nil || !alive {
+				log.Infof("MASTER : slave [%s] is not alive, remove.", id)
+				bitcaskNode.RemoveSlave(id.(string))
+			}
+			return true
+		})
+	}
 }
