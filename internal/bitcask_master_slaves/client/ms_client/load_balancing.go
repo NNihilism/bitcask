@@ -3,10 +3,9 @@ package msClient
 import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node/nodeservice"
 	"bitcaskDB/internal/log"
-	"sync"
 )
 
-var loadBalancingMu = sync.Mutex{}
+// var loadBalancingMu = sync.Mutex{}
 
 type weightInfo struct {
 	weight int
@@ -18,8 +17,8 @@ var totalWeight int
 var lastTime int64
 
 func (cli *Client) getRpc(cmd string) nodeservice.Client {
-	loadBalancingMu.Lock()
-	defer loadBalancingMu.Unlock()
+	cli.mu.Lock()
+	defer cli.mu.Unlock()
 
 	if !isReadOperation(cmd) {
 		return cli.masterRpc

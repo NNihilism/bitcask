@@ -98,8 +98,11 @@ func (cli *Client) updateNodeInfo(ctx context.Context, ticker *time.Ticker) {
 				})
 
 			}
+			cli.mu.Lock()
 			cli.nodesInfo = tmpNodeInfo
 			cli.lastNodeUpdate = resp.LastUpdateTime
+			defer cli.mu.Unlock()
+
 		case <-ctx.Done():
 			return
 		}
