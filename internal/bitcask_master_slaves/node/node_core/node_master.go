@@ -26,8 +26,7 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 		}, nil
 	}
 	// 判断是否重复添加
-	if _, ok := bitcaskNode.slavesRpc.Load(req.RunId); ok {
-		// if _, ok := bitcaskNode.getSlaveRPC(req.RunId); ok {
+	if _, ok := bitcaskNode.slavesInfo.Load(req.RunId); ok {
 		return &node.RegisterSlaveResponse{
 			BaseResp: &node.BaseResp{
 				StatusCode:    int64(node.ErrCode_SlaveofErrCode),
@@ -53,16 +52,24 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 			},
 		}, nil
 	}
-	bitcaskNode.slavesRpc.Store(req.RunId, c)
-
-	// 2. 修改变量
-	bitcaskNode.slavesStatus.Store(req.RunId, nodeInIdle)
-	bitcaskNode.cf.ConnectedSlaves += 1
-	bitcaskNode.slavesInfo = append(bitcaskNode.slavesInfo, &slaveInfo{
+	bitcaskNode.slavesInfo.Store(req.RunId, slaveInfo{
 		address: req.Address,
 		id:      req.RunId,
+		status:  nodeInIdle,
 		weight:  int(req.Weight),
+		rpc:     c,
 	})
+
+	// bitcaskNode.slavesRpc.Store(req.RunId, c)
+
+	// 2. 修改变量
+	// bitcaskNode.slavesStatus.Store(req.RunId, nodeInIdle)
+	bitcaskNode.cf.ConnectedSlaves += 1
+	// bitcaskNode.slavesInfo = append(bitcaskNode.slavesInfo, &slaveInfo{
+	// address: req.Address,
+	// id:      req.RunId,
+	// weight:  int(req.Weight),
+	// })
 
 	// 3. 开启心跳检测
 	go bitcaskNode.checkSlavesAlive(*time.NewTicker(time.Second * config.MasterHeartBeatFreq))
@@ -81,34 +88,51 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 // sync.Map好像并不能满足这里的并发需求
 // 虽然Load和Store是并发安全的，但是并不能原子执行
 // 需要一个类似CAS的语句来保证并发安全
-// sync.Map就不改回去了
 func (bitcaskNode *BitcaskNode) casSlaveSyncStatus(slaveId string, origin, target nodeSynctatusCode) bool {
 	bitcaskNode.slaveInfoMu.Lock()
 	defer bitcaskNode.slaveInfoMu.Unlock()
 
-	if status, ok := bitcaskNode.getSlaveStatus(slaveId); !ok {
+	iInfo, ok := bitcaskNode.slavesInfo.Load(slaveId)
+	if !ok {
+		log.Errorf("Get slave status [%s] failed", slaveId)
 		bitcaskNode.RemoveSlave(slaveId)
 		return false
-	} else if status != origin {
+	}
+	info, ok := iInfo.(slaveInfo)
+	if !ok {
+		log.Errorf("Convert iInfo[%v] to info failed", iInfo)
+		bitcaskNode.RemoveSlave(slaveId)
 		return false
 	}
-	bitcaskNode.slavesStatus.Store(slaveId, target)
+	if origin != info.status {
+		return false
+	}
+
+	info.status = target
+	bitcaskNode.slavesInfo.Store(slaveId, info)
+
 	return true
 }
 
 func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nodeSynctatusCode) bool {
-	// bitcaskNode.slaveInfoMu.Lock()
-	// defer bitcaskNode.slaveInfoMu.Unlock()
+	bitcaskNode.slaveInfoMu.Lock()
+	defer bitcaskNode.slaveInfoMu.Unlock()
 
-	if _, ok := bitcaskNode.getSlaveStatus(slaveId); !ok {
-		// log.Info("I am coming...")
+	iInfo, ok := bitcaskNode.slavesInfo.Load(slaveId)
+	if !ok {
+		log.Errorf("Get slave status [%s] failed", slaveId)
 		bitcaskNode.RemoveSlave(slaveId)
 		return false
 	}
-	log.Infof("change slave[%s] status[%v]", slaveId, status)
-	log.Infof("status == idle", status == nodeInIdle)
-	log.Infof("status == fullRepl", status == nodeInFullRepl)
-	bitcaskNode.slavesStatus.Store(slaveId, status)
+	info, ok := iInfo.(slaveInfo)
+	if !ok {
+		log.Errorf("Convert iInfo[%v] to info failed", iInfo)
+		bitcaskNode.RemoveSlave(slaveId)
+		return false
+	}
+	info.status = status
+	bitcaskNode.slavesInfo.Store(slaveId, info)
+
 	return true
 }
 
@@ -117,8 +141,8 @@ func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
 	defer bitcaskNode.slaveInfoMu.Unlock()
 
 	bitcaskNode.cf.ConnectedSlaves--
-	bitcaskNode.slavesRpc.Delete(slaveId)
-	bitcaskNode.slavesStatus.Delete(slaveId)
+	bitcaskNode.slavesInfo.Delete(slaveId)
+
 	return nil
 }
 
@@ -164,30 +188,37 @@ func (bitcaskNode *BitcaskNode) GetCache(key int64) (*node.LogEntryRequest, bool
 }
 
 func (bitcaskNode *BitcaskNode) getSlaveRPC(slaveId string) (nodeservice.Client, bool) {
-	iRpc, ok := bitcaskNode.slavesRpc.Load(slaveId)
+	iInfo, ok := bitcaskNode.slavesInfo.Load(slaveId)
 	if !ok {
-		log.Errorf("Get slave rpc [%s] failed", slaveId)
+		log.Errorf("Get slave status [%s] failed", slaveId)
+		bitcaskNode.RemoveSlave(slaveId)
+		return nil, false
+	}
+	info, ok := iInfo.(slaveInfo)
+	if !ok {
+		log.Errorf("Convert iInfo[%v] to info failed", iInfo)
 		bitcaskNode.RemoveSlave(slaveId)
 		return nil, false
 	}
 
-	rpc, ok := iRpc.(nodeservice.Client)
-	if !ok {
-		log.Errorf("Convert nodeservice.Client err")
-		bitcaskNode.RemoveSlave(slaveId)
-		return nil, false
-	}
-	return rpc, true
+	return info.rpc, true
 }
 
 func (bitcaskNode *BitcaskNode) getSlaveStatus(slaveId string) (nodeSynctatusCode, bool) {
-	status, ok := bitcaskNode.slavesStatus.Load(slaveId)
+	iInfo, ok := bitcaskNode.slavesInfo.Load(slaveId)
 	if !ok {
 		log.Errorf("Get slave status [%s] failed", slaveId)
 		bitcaskNode.RemoveSlave(slaveId)
 		return nodeInIdle, false
 	}
-	return status.(nodeSynctatusCode), true
+	info, ok := iInfo.(slaveInfo)
+	if !ok {
+		log.Errorf("Convert iInfo[%v] to info failed", iInfo)
+		bitcaskNode.RemoveSlave(slaveId)
+		return nodeInIdle, false
+	}
+
+	return info.status, true
 }
 
 func (bitcaskNode *BitcaskNode) saveMasterConfig() {
@@ -200,21 +231,26 @@ func (bitcaskNode *BitcaskNode) saveMasterConfig() {
 func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*node.GetAllNodesInfoResp, error) {
 	// slavesAddr := []string{}
 	// slavesId := []string{}
-	infos := make([]*node.SlaveInfo, len(bitcaskNode.slavesInfo))
+	bitcaskNode.slaveInfoMu.Lock()
+	defer bitcaskNode.slaveInfoMu.Unlock()
 
-	for i, info := range bitcaskNode.slavesInfo {
-		// slavesAddr = append(slavesAddr, info.address)
-		// slavesId = append(slavesId, info.id)
-		infos[i] = &node.SlaveInfo{
+	infos := []*node.SlaveInfo{}
+
+	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
+		info, ok := iInfo.(slaveInfo)
+		if !ok {
+			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
+			return true
+		}
+		infos = append(infos, &node.SlaveInfo{
 			Addr:   info.address,
 			Id:     info.id,
 			Weight: int32(info.weight),
-		}
-	}
+		})
+		return true
+	})
 
 	return &node.GetAllNodesInfoResp{
-		// SlaveAddress: slavesAddr,
-		// Slavesid:     slavesId,
 		Infos: infos,
 	}, nil
 }
@@ -226,12 +262,14 @@ func (bitcaskNode *BitcaskNode) checkSlavesAlive(ticker time.Ticker) {
 			ticker.Stop()
 			return
 		}
-		bitcaskNode.slavesRpc.Range(func(id, iRpc interface{}) bool {
-			rpc, ok := iRpc.(nodeservice.Client)
+
+		bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
+			info, ok := iInfo.(slaveInfo)
 			if !ok {
-				log.Errorf("convert iprc[%v] to nodeservice.Client err", iRpc)
+				log.Errorf("Convert iInfo[%v] to info failed", iInfo)
 				return true
 			}
+			rpc := info.rpc
 			alive, err := rpc.IsAlive(context.Background())
 			if err != nil || !alive {
 				log.Infof("MASTER : slave [%s] is not alive, remove.", id)
