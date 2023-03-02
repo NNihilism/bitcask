@@ -12,21 +12,22 @@ import (
 	"github.com/cloudwego/kitex/client"
 )
 
-type Node struct {
+type nodeInfo struct {
 	addr string
 	id   string
-	// 可以用于负载均衡决策
+	rpc  nodeservice.Client
+
 	weight int //权重
 	// delay  int //往返时延
 }
 
 type Client struct {
-	// addr           string
-	node           []Node
-	slaveRpcs      map[string]nodeservice.Client
+	nodesInfo      sync.Map
 	masterRpc      nodeservice.Client
 	lastNodeUpdate int64
 	mu             sync.RWMutex
+	ctx            context.Context
+	cancel         context.CancelFunc
 }
 
 type MSClientConfig struct {
@@ -37,38 +38,16 @@ type MSClientConfig struct {
 func NewClient(cf *MSClientConfig) *Client {
 	masterRpc := getNodeserviceClient(cf.MasterHost, cf.MasterPort)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	cli := &Client{
 		masterRpc:      masterRpc,
-		lastNodeUpdate: time.Now().Unix(),
+		lastNodeUpdate: 0,
 		mu:             sync.RWMutex{},
-		slaveRpcs:      make(map[string]nodeservice.Client),
-	}
-	// 获取所有从节点信息
-	resp, err := masterRpc.GetAllNodesInfo(context.Background(), &node.GetAllNodesInfoReq{})
-	if err != nil {
-		log.Errorf("Get all nodes into err [%v]", err)
-		return nil
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 
-	// 初始化所有SlaveRPC
-	for _, info := range resp.Infos {
-
-		// for i := 0; i < len(resp.SlaveAddress); i++ {
-		tmpRpc, err := nodeservice.NewClient(
-			consts.NodeServiceName,
-			client.WithHostPorts(info.Addr),
-		)
-		if err != nil {
-			log.Errorf("Init slave rpc err [%v]", err)
-			continue
-		}
-		cli.slaveRpcs[info.Id] = tmpRpc
-		cli.node = append(cli.node, Node{
-			addr:   info.Addr,
-			id:     info.Addr,
-			weight: int(info.Weight),
-		})
-	}
+	go cli.updateNodeInfo(ctx, time.NewTicker(time.Second*5))
 
 	return cli
 }
@@ -85,4 +64,45 @@ func getNodeserviceClient(host, port string) nodeservice.Client {
 	return c
 }
 
-// func (cli *Client) Cmd(cmd []byte, args [][]byte)
+func (cli *Client) updateNodeInfo(ctx context.Context, ticker *time.Ticker) {
+	for {
+		select {
+		case <-ticker.C: // 获取所有从节点信息
+			resp, err := cli.masterRpc.GetAllNodesInfo(context.Background(), &node.GetAllNodesInfoReq{})
+			if err != nil {
+				log.Errorf("Get all nodes into err [%v]", err)
+				return
+			}
+
+			// 节点没更新
+			if cli.lastNodeUpdate == resp.LastUpdateTime {
+				break
+			}
+
+			// 使用覆盖的形式 不上锁
+			var tmpNodeInfo sync.Map
+			for _, info := range resp.Infos {
+				tmpRpc, err := nodeservice.NewClient(
+					consts.NodeServiceName,
+					client.WithHostPorts(info.Addr),
+				)
+				if err != nil {
+					log.Errorf("Init slave rpc err [%v]", err)
+					continue
+				}
+				tmpNodeInfo.Store(info.Id, nodeInfo{
+					id:     info.Id,
+					addr:   info.Addr,
+					weight: int(info.Weight),
+					rpc:    tmpRpc,
+				})
+
+			}
+			cli.nodesInfo = tmpNodeInfo
+			cli.lastNodeUpdate = resp.LastUpdateTime
+		case <-ctx.Done():
+			return
+		}
+	}
+
+}

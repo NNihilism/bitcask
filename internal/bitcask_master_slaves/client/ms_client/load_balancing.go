@@ -2,19 +2,41 @@ package msClient
 
 import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/kitex_gen/node/nodeservice"
-	"time"
+	"bitcaskDB/internal/log"
+	"sync"
 )
 
-var currentWeight, effectiveWeight []int
+var loadBalancingMu = sync.Mutex{}
+
+type weightInfo struct {
+	weight int
+	id     string
+}
+
+var currentWeight, effectiveWeight []weightInfo
 var totalWeight int
 var lastTime int64
 
 func (cli *Client) getRpc(cmd string) nodeservice.Client {
+	loadBalancingMu.Lock()
+	defer loadBalancingMu.Unlock()
+
 	if !isReadOperation(cmd) {
 		return cli.masterRpc
 	}
 	slaveId := cli.selectNode()
-	return cli.slaveRpcs[slaveId]
+
+	iInfo, ok := cli.nodesInfo.Load(slaveId)
+	if !ok {
+		log.Errorf("Load node[%s] info failed", slaveId)
+		return nil
+	}
+	info, ok := iInfo.(nodeInfo)
+	if !ok {
+		log.Errorf("Convert iInfo(%v) to info failed", iInfo)
+		return nil
+	}
+	return info.rpc
 }
 
 func (cli *Client) selectNode() string {
@@ -27,31 +49,39 @@ func (cli *Client) selectNode() string {
 	}
 
 	return cli.updateLoadBalancing()
-
 }
 
 func (cli *Client) resetLoadBalancing() {
-	currentWeight = make([]int, len(cli.node))
-	effectiveWeight = make([]int, len(cli.node))
+	currentWeight, effectiveWeight = []weightInfo{}, []weightInfo{}
 	totalWeight = 0
-	for i, info := range cli.node {
-		effectiveWeight[i] = info.weight
-		totalWeight += info.weight
-	}
 
-	lastTime = time.Now().Unix()
+	cli.nodesInfo.Range(func(id, iInfo interface{}) bool {
+		info, ok := iInfo.(nodeInfo)
+		if !ok {
+			log.Errorf("convert iInfo [%v] to info failed", iInfo)
+			return false
+		}
+		totalWeight += info.weight
+		effectiveWeight = append(effectiveWeight, weightInfo{
+			weight: info.weight,
+			id:     info.id,
+		})
+		return true
+	})
+	currentWeight = make([]weightInfo, len(effectiveWeight))
+	lastTime = cli.lastNodeUpdate
 }
 
 func (cli *Client) updateLoadBalancing() string {
 	res_idx := 0
 	for i := range effectiveWeight {
-		currentWeight[i] += effectiveWeight[i]
-		if currentWeight[i] > currentWeight[res_idx] {
+		currentWeight[i].weight += effectiveWeight[i].weight
+		if currentWeight[i].weight > currentWeight[res_idx].weight {
 			res_idx = i
 		}
 	}
-	currentWeight[res_idx] -= totalWeight
-	return cli.node[res_idx].id
+	currentWeight[res_idx].weight -= totalWeight
+	return currentWeight[res_idx].id
 }
 
 func isReadOperation(command string) bool {
