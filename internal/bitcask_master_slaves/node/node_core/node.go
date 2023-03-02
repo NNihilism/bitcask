@@ -30,18 +30,26 @@ type syncChanItem struct {
 	slaveId string
 }
 
+type replicationBuffer struct {
+	buf []*node.LogEntryRequest
+}
+
 type slaveInfo struct {
 	address string
 	id      string
 	status  nodeSynctatusCode
 	weight  int
 	rpc     nodeservice.Client
-	// replicationBuffer
+	buffer  replicationBuffer
+	mu      *sync.Mutex
 }
 
 type BitcaskNode struct {
 	db *bitcask.BitcaskDB
 	cf *config.NodeConfig
+
+	// TODO 由于BitcaskDB缺少快照功能 因此得在bitcask的上层再添加一个锁来保证”快照的实现“
+	mu *sync.RWMutex
 
 	slaveInfoMu         *sync.RWMutex
 	slavesInfo          sync.Map
@@ -58,7 +66,7 @@ type BitcaskNode struct {
 
 	Ctx    context.Context
 	cancel context.CancelFunc
-	once   *sync.Once
+	// once   *sync.Once
 }
 
 func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*BitcaskNode, error) {
@@ -91,12 +99,13 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 	node := &BitcaskNode{
 		db:                  db,
 		cf:                  nodeConfig,
+		mu:                  new(sync.RWMutex),
 		slaveInfoMu:         new(sync.RWMutex),
 		infosLastUpdateTime: time.Now().Unix(),
 		cacheMu:             new(sync.Mutex),
-		replBakBuffer:       lru.New(51200, nil),
+		replBakBuffer:       lru.New(config.ReplBakBufferSize, nil),
 		syncStatus:          nodeInIdle,
-		once:                new(sync.Once),
+		// once:                new(sync.Once),
 		// syncChan:   make(chan syncChanItem, config.SyncChanSize),
 		Ctx:    ctx,
 		cancel: cancelFunc,
@@ -105,10 +114,6 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 	go node.checkSlavesAlive(node.Ctx, *time.NewTicker(time.Second * config.MasterHeartBeatFreq))
 
 	return node, nil
-}
-
-func (node *BitcaskNode) GetConfig() *config.NodeConfig {
-	return node.cf
 }
 
 func (node *BitcaskNode) resetReplication(resetDB bool) {
@@ -127,6 +132,10 @@ func (node *BitcaskNode) resetReplication(resetDB bool) {
 		}
 		node.db = db
 	}
+}
+
+func (node *BitcaskNode) GetConfig() *config.NodeConfig {
+	return node.cf
 }
 
 func (node *BitcaskNode) Close() {

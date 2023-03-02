@@ -45,6 +45,7 @@ const (
 	MasterHeartBeatFreq         = 10  // s
 	SyncChanSize                = 100
 	RemakeDir                   = false // 创建数据库时 是否需要把原来的数据库删除
+	ReplBakBufferSize           = 51200 // B
 )
 
 var (

@@ -19,16 +19,24 @@ func (bitcaskNode *BitcaskNode) AsynchronousSync(req *node.LogEntryRequest) {
 			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
 			return true
 		}
+
 		// 子节点正在进行全量/增量复制
+		info.mu.Lock()
 		if info.status != nodeInIdle {
-			log.Infof("slave[%s] is not idle", info.id)
-			// TODO 在这里将req写入对应slave的缓存
+			if info.status == nodeInFullRepl { // 全量复制才需要写入缓冲，增量复制不更新就行了，自有协程会补上
+				bitcaskNode.writeToBuffer(info.id, req)
+			}
+			info.mu.Unlock()
 			return true
 		}
+		info.mu.Unlock()
 
 		rpc := info.rpc
-		ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
-		rpc.OpLogEntry(ctx, req)
+		go func(rpc nodeservice.Client) {
+			ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
+			rpc.OpLogEntry(ctx, req)
+		}(rpc)
+
 		return true
 	})
 }
@@ -46,11 +54,15 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 			return true
 		}
 		// 子节点正在进行全量/增量复制
+		info.mu.Lock()
 		if info.status != nodeInIdle {
-			log.Infof("slave[%s] is not idle", info.id)
-			// TODO 在这里将req写入对应slave的缓存
+			if info.status == nodeInFullRepl { // 全量复制才需要写入缓冲，增量复制不更新就行了，自有协程会补上
+				bitcaskNode.writeToBuffer(info.id, req)
+			}
+			info.mu.Unlock()
 			return true
 		}
+		info.mu.Unlock()
 
 		rpc := info.rpc
 		go func(rpc nodeservice.Client) {
@@ -68,25 +80,36 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 
 // 同步更新
 func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
+	wg := new(sync.WaitGroup)
 	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
 		info, ok := iInfo.(*slaveInfo)
 		if !ok {
 			log.Errorf("Convert iInfo[%v] to info failed", iInfo)
 			return true
 		}
+
 		// 子节点正在进行全量/增量复制
+		info.mu.Lock()
 		if info.status != nodeInIdle {
-			log.Infof("slave[%s] is not idle", info.id)
-			// TODO 在这里将req写入对应slave的缓存
-			bitcaskNode.writeToBuffer(info.id, req)
+			if info.status == nodeInFullRepl { // 全量复制才需要写入缓冲，增量复制不更新就行了，自有协程会补上
+				bitcaskNode.writeToBuffer(info.id, req)
+			}
+			info.mu.Unlock()
 			return true
 		}
+		info.mu.Unlock()
 
 		rpc := info.rpc
-		ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
-		rpc.OpLogEntry(ctx, req)
+		wg.Add(1)
+		go func(rpc nodeservice.Client) {
+			defer wg.Done()
+			ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
+			rpc.OpLogEntry(ctx, req)
+		}(rpc)
+
 		return true
 	})
+	wg.Wait()
 }
 
 // 全量复制

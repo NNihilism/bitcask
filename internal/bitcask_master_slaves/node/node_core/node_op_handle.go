@@ -7,7 +7,6 @@ import (
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/errno"
 	"bitcaskDB/internal/log"
 	"bitcaskDB/internal/util"
-	"time"
 )
 
 var resultOK = "OK"
@@ -130,43 +129,22 @@ var cmdReadOperationMap = map[string]struct{}{
 	"zrevrank":  {},
 }
 
+// 处理Logentry操作申请
 func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryRequest) (resp *node.LogEntryResponse, err error) {
-	// type LogEntryRequest struct {
-	// 	EntryId int64    `thrift:"entry_id,1" frugal:"1,default,i64" json:"entry_id"`
-	// 	Cmd     string   `thrift:"cmd,2" frugal:"2,default,string" json:"cmd"`
-	// 	Args_   []string `thrift:"args,3" frugal:"3,default,list<string>" json:"args"`
-	// }
-
-	// type LogEntryResponse struct {
-	// 	Code  bool        `thrift:"code,1" frugal:"1,default,bool" json:"code"`
-	// 	Entry []*LogEntry `thrift:"entry,2" frugal:"2,default,list<LogEntry>" json:"entry"`
-	// }
-
-	// 若role == slave，则只能接受Master的写命令进行数据同步，其他节点/客户端发送的写命令不执行
-	// EntryId > 0，则为Master发送的请求
-	command, args := req.Cmd, req.Args_
-	cmdFunc, ok := supportedCommands[command]
+	command := req.Cmd
+	_, ok := supportedCommands[command]
 
 	// 无法解析的命令
 	if !ok {
-		// TODO PackResponse的包装
 		return &node.LogEntryResponse{
-			BaseResp: &node.BaseResp{
-				StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),
-				StatusMessage: errno.NewErr(errno.ErrCodeUnknownCMD, &errno.ErrInfo{Cmd: command}).Error(),
-				ServiceTime:   time.Now().Unix(),
-			},
+			BaseResp: pack.BuildBaseResp(node.ErrCode_OpLogEntryErrCode, errno.NewErr(errno.ErrCodeUnknownCMD, &errno.ErrInfo{Cmd: command})),
 		}, nil
 	}
 
 	// 非Master节点在从节点上进行写操作
 	if req.MasterId == "" && bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
 		return &node.LogEntryResponse{
-			BaseResp: &node.BaseResp{
-				StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),
-				StatusMessage: errno.NewErr(errno.ErrCodeWriteOnSlave, nil).Error(),
-				ServiceTime:   time.Now().Unix(),
-			},
+			BaseResp: pack.BuildBaseResp(node.ErrCode_OpLogEntryErrCode, errno.NewErr(errno.ErrCodeWriteOnSlave, nil)),
 		}, nil
 	}
 
@@ -174,33 +152,36 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 
 	// 从节点收到了Master发来的写操作
 	if bitcaskNode.cf.Role == config.Slave && !isReadOperation(command) {
-		// 如果处于syncbusy状态，表明正在进行全量复制，此时无视序列号，直接写入
-		// 如果不是syncbush状态，则可能正在进行增量复制或者状态正常，则需要判断序列号，不合法则返回
-		// log.Infof("syncStatus == nodeInFulllRepl", bitcaskNode.syncStatus == nodeInFullRepl)
-		// log.Infof("status : ", bitcaskNode.syncStatus)
+		// 全量复制时，slave对序列号没要求
+		// 非全量复制时，slave需要检查序列号是否合法
 		if bitcaskNode.syncStatus != nodeInFullRepl && req.EntryId != int64(bitcaskNode.cf.CurReplicationOffset)+1 {
-			// 更新已知最大进度
 			if bitcaskNode.cf.MasterReplicationOffset < int(req.EntryId) {
 				bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
 			}
-			// 发送数据同步请求
-			log.Infof("slave still want to send sync req..., status[%v], entryid[%d], offset[%d]", bitcaskNode.syncStatus, req.EntryId, bitcaskNode.cf.CurReplicationOffset)
+			// 收到乱序包 请求发送正确的数据包
 			bitcaskNode.sendPSyncReq()
 			return
 		}
 	}
 
-	log.Infof("ready to op...")
-	// 执行对应的操作
+	// 判断结束，可以执行
+	return bitcaskNode.executeOpReq(req)
+}
+
+// 执行LogEntry操作
+func (bitcaskNode *BitcaskNode) executeOpReq(req *node.LogEntryRequest) (*node.LogEntryResponse, error) {
+	command, args := req.Cmd, req.Args_
+	cmdFunc := supportedCommands[command]
+
+	if isReadOperation(command) {
+		bitcaskNode.mu.RLock()
+	} else {
+		bitcaskNode.mu.Lock()
+	}
 	rpcResp := &node.LogEntryResponse{}
 
 	if res, err := cmdFunc(bitcaskNode, util.StrArrToByteArr(args)); err != nil {
-		rpcResp.BaseResp = &node.BaseResp{
-			StatusCode:    int64(node.ErrCode_OpLogEntryErrCode),
-			StatusMessage: err.Error(),
-			ServiceTime:   time.Now().Unix(),
-		}
-		// 无论主从节点，执行错误则不需要再继续后续操作
+		rpcResp.BaseResp = pack.BuildBaseResp(node.ErrCode_OpLogEntryErrCode, err)
 		return rpcResp, nil
 	} else {
 		iResp, err := pack.BuildResp(pack.OpLogEntryResp, res)
@@ -210,20 +191,22 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		rpcResp = iResp.(*node.LogEntryResponse)
 	}
 
-	// 读请求不需要更新任何配置
 	if isReadOperation(command) {
-		return rpcResp, nil
+		bitcaskNode.mu.RUnlock()
+		return rpcResp, nil // 读请求不需要更新任何配置
+
+	} else {
+		bitcaskNode.mu.Unlock()
 	}
 
-	// TODO 将下面的代码抽象出来, 可以复用
 	if bitcaskNode.cf.Role == config.Slave {
-		// 进度相同，不会触发更新请求
 		bitcaskNode.cf.CurReplicationOffset = int(req.EntryId)
+		bitcaskNode.cf.MasterReplicationOffset = int(req.EntryId)
 	} else if bitcaskNode.cf.Role == config.Master {
-		// 将该记录进行保存，以供其他节点进行增量复制
 		bitcaskNode.cf.CurReplicationOffset += 1
 		bitcaskNode.cf.MasterReplicationOffset += 1
 		bitcaskNode.saveMasterConfig()
+		// 对于并发写请求，先执行的将会被赋上相对小的序列号，同时由于锁机制，也将会先被放入缓存或者进行传播
 		req.EntryId = int64(bitcaskNode.cf.CurReplicationOffset)
 		req.MasterId = bitcaskNode.cf.ID
 		bitcaskNode.AddCache(req)
@@ -234,6 +217,13 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 		return rpcResp, nil
 	}
 
+	// 写操作 同步给从节点
+	bitcaskNode.opPropagate(req)
+
+	return rpcResp, nil
+}
+
+func (bitcaskNode *BitcaskNode) opPropagate(req *node.LogEntryRequest) {
 	// 根据配置文件，将该数据进行异步/半同步/同步进行数据更新
 	switch config.Synchronous {
 	case config.Asynchronous:
@@ -245,8 +235,6 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 	default:
 		bitcaskNode.SynchronousSync(req)
 	}
-
-	return rpcResp, nil
 }
 
 func isReadOperation(command string) bool {
