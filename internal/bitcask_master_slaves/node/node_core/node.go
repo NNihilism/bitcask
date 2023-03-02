@@ -42,10 +42,11 @@ type BitcaskNode struct {
 	slavesRpc    sync.Map
 	slavesStatus sync.Map
 	slavesInfo   []*slaveInfo
-	masterRpc    nodeservice.Client
 
-	cacheMu *sync.Mutex
-	opCache *lru.Cache // 主节点用于存储最近收到的写命令，供从节点进行增量复制
+	masterRpc nodeservice.Client
+
+	cacheMu       *sync.Mutex
+	replBakBuffer *lru.Cache // 主节点用于存储最近收到的写命令，供从节点进行增量复制
 
 	// role == master : syncStatus为nodeInFullRepl时,所有写命令需要放置缓冲区,待syncStatus为Incr或者Idle时才将缓冲区内容写入
 	syncStatus nodeSynctatusCode // 对于Master节点,这个变量可以用来快速判断是否正在与某个slave进行全量复制,对于slave节点,这个变量用于判断目前自身所处状态
@@ -82,12 +83,12 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 
 	// 创建node节点
 	node := &BitcaskNode{
-		db:          db,
-		cf:          nodeConfig,
-		slaveInfoMu: new(sync.RWMutex),
-		cacheMu:     new(sync.Mutex),
-		opCache:     lru.New(51200, nil),
-		syncStatus:  nodeInIdle,
+		db:            db,
+		cf:            nodeConfig,
+		slaveInfoMu:   new(sync.RWMutex),
+		cacheMu:       new(sync.Mutex),
+		replBakBuffer: lru.New(51200, nil),
+		syncStatus:    nodeInIdle,
 		// syncChan:   make(chan syncChanItem, config.SyncChanSize),
 		// Ctx:    ctx,
 		// cancel: cancelFunc,

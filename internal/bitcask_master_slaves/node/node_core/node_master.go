@@ -139,18 +139,18 @@ func (bitcaskNode *BitcaskNode) AddCache(req *node.LogEntryRequest) {
 	defer bitcaskNode.cacheMu.Unlock()
 
 	// log.Info("添加缓存[%v]", req)
-	bitcaskNode.opCache.Add(fmt.Sprintf("%d", req.EntryId), &cacheItem{req: req})
+	bitcaskNode.replBakBuffer.Add(fmt.Sprintf("%d", req.EntryId), &cacheItem{req: req})
 }
 
 func (bitcaskNode *BitcaskNode) GetCache(key int64) (*node.LogEntryRequest, bool) {
 	bitcaskNode.cacheMu.Lock()
 	defer bitcaskNode.cacheMu.Unlock()
 
-	if bitcaskNode.opCache == nil {
+	if bitcaskNode.replBakBuffer == nil {
 		return nil, false
 	}
 
-	if item, ok := bitcaskNode.opCache.Get(fmt.Sprintf("%d", key)); ok {
+	if item, ok := bitcaskNode.replBakBuffer.Get(fmt.Sprintf("%d", key)); ok {
 		return item.(*cacheItem).req, true
 	}
 	return nil, false
