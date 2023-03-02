@@ -18,6 +18,7 @@ struct BaseResp {
 struct RegisterSlaveRequest {
     1: string address   // 从节点地址
     2: string runId  // 从节点的唯一标识
+    3: i32 weight //权重
 }
 
 struct RegisterSlaveResponse {
@@ -120,9 +121,13 @@ struct GetAllNodesInfoReq {
     # 1:
 }
 
+struct SlaveInfo {
+    1: string addr
+    2: string id
+    3: i32 weight
+}
 struct GetAllNodesInfoResp {
-    1: list<string> slaveAddress
-    2: list<string> slavesid
+    1: list<SlaveInfo> infos
 }
 
 service NodeService {
