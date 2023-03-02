@@ -9,13 +9,27 @@ import (
 
 const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
 
+var key2 [][]byte
+
 func init() {
 	rand.Seed(time.Now().Unix())
+	writeCount := 180000
+	for i := 0; i < writeCount; i++ {
+		key2 = append(key2, getKey(i))
+	}
 }
 
 // GetKey length: 32 Bytes
 func getKey(n int) []byte {
 	return []byte("kvstore-bench-key------" + fmt.Sprintf("%09d", n))
+}
+
+func getKey2(n int) [][]byte {
+	return [][]byte{[]byte("kvstore-bench-key------" + fmt.Sprintf("%09d", n))}
+}
+
+func getKeyAndValue(n int) [][]byte {
+	return [][]byte{getKey(n), getValue128B()}
 }
 
 // GetValue128B .
