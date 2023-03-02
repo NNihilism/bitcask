@@ -4326,7 +4326,8 @@ func (p *SlaveInfo) Field3DeepEqual(src int32) bool {
 }
 
 type GetAllNodesInfoResp struct {
-	Infos []*SlaveInfo `thrift:"infos,1" frugal:"1,default,list<SlaveInfo>" json:"infos"`
+	Infos          []*SlaveInfo `thrift:"infos,1" frugal:"1,default,list<SlaveInfo>" json:"infos"`
+	LastUpdateTime int64        `thrift:"lastUpdateTime,2" frugal:"2,default,i64" json:"lastUpdateTime"`
 }
 
 func NewGetAllNodesInfoResp() *GetAllNodesInfoResp {
@@ -4340,12 +4341,20 @@ func (p *GetAllNodesInfoResp) InitDefault() {
 func (p *GetAllNodesInfoResp) GetInfos() (v []*SlaveInfo) {
 	return p.Infos
 }
+
+func (p *GetAllNodesInfoResp) GetLastUpdateTime() (v int64) {
+	return p.LastUpdateTime
+}
 func (p *GetAllNodesInfoResp) SetInfos(val []*SlaveInfo) {
 	p.Infos = val
+}
+func (p *GetAllNodesInfoResp) SetLastUpdateTime(val int64) {
+	p.LastUpdateTime = val
 }
 
 var fieldIDToName_GetAllNodesInfoResp = map[int16]string{
 	1: "infos",
+	2: "lastUpdateTime",
 }
 
 func (p *GetAllNodesInfoResp) Read(iprot thrift.TProtocol) (err error) {
@@ -4370,6 +4379,16 @@ func (p *GetAllNodesInfoResp) Read(iprot thrift.TProtocol) (err error) {
 		case 1:
 			if fieldTypeId == thrift.LIST {
 				if err = p.ReadField1(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 2:
+			if fieldTypeId == thrift.I64 {
+				if err = p.ReadField2(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -4427,6 +4446,15 @@ func (p *GetAllNodesInfoResp) ReadField1(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *GetAllNodesInfoResp) ReadField2(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadI64(); err != nil {
+		return err
+	} else {
+		p.LastUpdateTime = v
+	}
+	return nil
+}
+
 func (p *GetAllNodesInfoResp) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin("GetAllNodesInfoResp"); err != nil {
@@ -4435,6 +4463,10 @@ func (p *GetAllNodesInfoResp) Write(oprot thrift.TProtocol) (err error) {
 	if p != nil {
 		if err = p.writeField1(oprot); err != nil {
 			fieldId = 1
+			goto WriteFieldError
+		}
+		if err = p.writeField2(oprot); err != nil {
+			fieldId = 2
 			goto WriteFieldError
 		}
 
@@ -4481,6 +4513,23 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 1 end error: ", p), err)
 }
 
+func (p *GetAllNodesInfoResp) writeField2(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("lastUpdateTime", thrift.I64, 2); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteI64(p.LastUpdateTime); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 2 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 2 end error: ", p), err)
+}
+
 func (p *GetAllNodesInfoResp) String() string {
 	if p == nil {
 		return "<nil>"
@@ -4497,6 +4546,9 @@ func (p *GetAllNodesInfoResp) DeepEqual(ano *GetAllNodesInfoResp) bool {
 	if !p.Field1DeepEqual(ano.Infos) {
 		return false
 	}
+	if !p.Field2DeepEqual(ano.LastUpdateTime) {
+		return false
+	}
 	return true
 }
 
@@ -4510,6 +4562,13 @@ func (p *GetAllNodesInfoResp) Field1DeepEqual(src []*SlaveInfo) bool {
 		if !v.DeepEqual(_src) {
 			return false
 		}
+	}
+	return true
+}
+func (p *GetAllNodesInfoResp) Field2DeepEqual(src int64) bool {
+
+	if p.LastUpdateTime != src {
+		return false
 	}
 	return true
 }

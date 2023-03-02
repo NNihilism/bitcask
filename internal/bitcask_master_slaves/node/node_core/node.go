@@ -43,11 +43,10 @@ type BitcaskNode struct {
 	db *bitcask.BitcaskDB
 	cf *config.NodeConfig
 
-	slaveInfoMu *sync.RWMutex
-	// slavesRpc    sync.Map
-	// slavesStatus sync.Map
-	slavesInfo sync.Map
-	// replicationBuffer sync.Map
+	slaveInfoMu         *sync.RWMutex
+	slavesInfo          sync.Map
+	infosLastUpdateTime int64
+
 	masterRpc nodeservice.Client
 
 	cacheMu       *sync.Mutex
@@ -90,13 +89,14 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	// 创建node节点
 	node := &BitcaskNode{
-		db:            db,
-		cf:            nodeConfig,
-		slaveInfoMu:   new(sync.RWMutex),
-		cacheMu:       new(sync.Mutex),
-		replBakBuffer: lru.New(51200, nil),
-		syncStatus:    nodeInIdle,
-		once:          new(sync.Once),
+		db:                  db,
+		cf:                  nodeConfig,
+		slaveInfoMu:         new(sync.RWMutex),
+		infosLastUpdateTime: time.Now().Unix(),
+		cacheMu:             new(sync.Mutex),
+		replBakBuffer:       lru.New(51200, nil),
+		syncStatus:          nodeInIdle,
+		once:                new(sync.Once),
 		// syncChan:   make(chan syncChanItem, config.SyncChanSize),
 		Ctx:    ctx,
 		cancel: cancelFunc,
@@ -127,4 +127,9 @@ func (node *BitcaskNode) resetReplication(resetDB bool) {
 		}
 		node.db = db
 	}
+}
+
+func (node *BitcaskNode) Close() {
+	node.db.Close()
+	node.cancel()
 }

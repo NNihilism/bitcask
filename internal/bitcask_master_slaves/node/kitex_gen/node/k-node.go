@@ -3411,6 +3411,20 @@ func (p *GetAllNodesInfoResp) FastRead(buf []byte) (int, error) {
 					goto SkipFieldError
 				}
 			}
+		case 2:
+			if fieldTypeId == thrift.I64 {
+				l, err = p.FastReadField2(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
 		default:
 			l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
 			offset += l
@@ -3473,6 +3487,20 @@ func (p *GetAllNodesInfoResp) FastReadField1(buf []byte) (int, error) {
 	return offset, nil
 }
 
+func (p *GetAllNodesInfoResp) FastReadField2(buf []byte) (int, error) {
+	offset := 0
+
+	if v, l, err := bthrift.Binary.ReadI64(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+
+		p.LastUpdateTime = v
+
+	}
+	return offset, nil
+}
+
 // for compatibility
 func (p *GetAllNodesInfoResp) FastWrite(buf []byte) int {
 	return 0
@@ -3482,6 +3510,7 @@ func (p *GetAllNodesInfoResp) FastWriteNocopy(buf []byte, binaryWriter bthrift.B
 	offset := 0
 	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "GetAllNodesInfoResp")
 	if p != nil {
+		offset += p.fastWriteField2(buf[offset:], binaryWriter)
 		offset += p.fastWriteField1(buf[offset:], binaryWriter)
 	}
 	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
@@ -3494,6 +3523,7 @@ func (p *GetAllNodesInfoResp) BLength() int {
 	l += bthrift.Binary.StructBeginLength("GetAllNodesInfoResp")
 	if p != nil {
 		l += p.field1Length()
+		l += p.field2Length()
 	}
 	l += bthrift.Binary.FieldStopLength()
 	l += bthrift.Binary.StructEndLength()
@@ -3516,6 +3546,15 @@ func (p *GetAllNodesInfoResp) fastWriteField1(buf []byte, binaryWriter bthrift.B
 	return offset
 }
 
+func (p *GetAllNodesInfoResp) fastWriteField2(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "lastUpdateTime", thrift.I64, 2)
+	offset += bthrift.Binary.WriteI64(buf[offset:], p.LastUpdateTime)
+
+	offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	return offset
+}
+
 func (p *GetAllNodesInfoResp) field1Length() int {
 	l := 0
 	l += bthrift.Binary.FieldBeginLength("infos", thrift.LIST, 1)
@@ -3524,6 +3563,15 @@ func (p *GetAllNodesInfoResp) field1Length() int {
 		l += v.BLength()
 	}
 	l += bthrift.Binary.ListEndLength()
+	l += bthrift.Binary.FieldEndLength()
+	return l
+}
+
+func (p *GetAllNodesInfoResp) field2Length() int {
+	l := 0
+	l += bthrift.Binary.FieldBeginLength("lastUpdateTime", thrift.I64, 2)
+	l += bthrift.Binary.I64Length(p.LastUpdateTime)
+
 	l += bthrift.Binary.FieldEndLength()
 	return l
 }

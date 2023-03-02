@@ -37,7 +37,6 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 		}, nil
 	}
 
-	// 添加slave
 	// 1. rpc初始化
 	c, err := nodeservice.NewClient(
 		consts.NodeServiceName,
@@ -53,6 +52,7 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 			},
 		}, nil
 	}
+
 	bitcaskNode.slavesInfo.Store(req.RunId, slaveInfo{
 		address: req.Address,
 		id:      req.RunId,
@@ -60,24 +60,8 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 		weight:  int(req.Weight),
 		rpc:     c,
 	})
-
-	// bitcaskNode.slavesRpc.Store(req.RunId, c)
-
-	// 2. 修改变量
-	// bitcaskNode.slavesStatus.Store(req.RunId, nodeInIdle)
-	// if atomic.LoadInt32(&bitcaskNode.cf.ConnectedSlaves) == 0 {
-
-	// }
-
+	bitcaskNode.infosLastUpdateTime = time.Now().Unix()
 	atomic.AddInt32(&bitcaskNode.cf.ConnectedSlaves, 1)
-	// bitcaskNode.cf.ConnectedSlaves += 1
-	// bitcaskNode.slavesInfo = append(bitcaskNode.slavesInfo, &slaveInfo{
-	// address: req.Address,
-	// id:      req.RunId,
-	// weight:  int(req.Weight),
-	// })
-
-	// 3. 开启心跳检测
 
 	// 返回结果
 	return &node.RegisterSlaveResponse{
@@ -147,6 +131,7 @@ func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
 
 	bitcaskNode.cf.ConnectedSlaves--
 	bitcaskNode.slavesInfo.Delete(slaveId)
+	bitcaskNode.infosLastUpdateTime = time.Now().Unix()
 
 	return nil
 }

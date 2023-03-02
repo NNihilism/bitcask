@@ -128,13 +128,14 @@ struct SlaveInfo {
 }
 struct GetAllNodesInfoResp {
     1: list<SlaveInfo> infos
+    2: i64 lastUpdateTime
 }
 
 service NodeService {
     # master -> slave
     bool ReplFinishNotify(ReplFinishNotifyReq req)
     bool IsAlive()
-    
+
     # slave -> master
     RegisterSlaveResponse RegisterSlave(1: RegisterSlaveRequest req)
     PSyncResponse PSyncReq(1: PSyncRequest req) // slave发起请求
