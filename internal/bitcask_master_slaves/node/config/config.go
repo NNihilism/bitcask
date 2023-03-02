@@ -61,7 +61,7 @@ type NodeConfig struct {
 	MasterId                string
 	Role                    Role
 	Path                    string
-	ConnectedSlaves         int
+	ConnectedSlaves         int32
 	MasterReplicationOffset int
 	CurReplicationOffset    int
 	RemakeDir               bool

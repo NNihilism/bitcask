@@ -9,10 +9,12 @@ import (
 	"bitcaskDB/internal/bitcask_master_slaves/node/util/lru"
 	"bitcaskDB/internal/log"
 	"bitcaskDB/internal/options"
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type nodeSynctatusCode int8
@@ -55,8 +57,9 @@ type BitcaskNode struct {
 	syncStatus nodeSynctatusCode // 对于Master节点,这个变量可以用来快速判断是否正在与某个slave进行全量复制,对于slave节点,这个变量用于判断目前自身所处状态
 	// syncChan   chan syncChanItem
 
-	// Ctx    context.Context
-	// cancel context.CancelFunc
+	Ctx    context.Context
+	cancel context.CancelFunc
+	once   *sync.Once
 }
 
 func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*BitcaskNode, error) {
@@ -84,6 +87,7 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 	}
 	nodeConfig.CurReplicationOffset = offset
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	// 创建node节点
 	node := &BitcaskNode{
 		db:            db,
@@ -92,10 +96,13 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 		cacheMu:       new(sync.Mutex),
 		replBakBuffer: lru.New(51200, nil),
 		syncStatus:    nodeInIdle,
+		once:          new(sync.Once),
 		// syncChan:   make(chan syncChanItem, config.SyncChanSize),
-		// Ctx:    ctx,
-		// cancel: cancelFunc,
+		Ctx:    ctx,
+		cancel: cancelFunc,
 	}
+
+	go node.checkSlavesAlive(node.Ctx, *time.NewTicker(time.Second * config.MasterHeartBeatFreq))
 
 	return node, nil
 }

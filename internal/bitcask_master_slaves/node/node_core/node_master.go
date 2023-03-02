@@ -8,6 +8,7 @@ import (
 	"bitcaskDB/internal/log"
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/cloudwego/kitex/client"
@@ -64,7 +65,12 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 
 	// 2. 修改变量
 	// bitcaskNode.slavesStatus.Store(req.RunId, nodeInIdle)
-	bitcaskNode.cf.ConnectedSlaves += 1
+	// if atomic.LoadInt32(&bitcaskNode.cf.ConnectedSlaves) == 0 {
+
+	// }
+
+	atomic.AddInt32(&bitcaskNode.cf.ConnectedSlaves, 1)
+	// bitcaskNode.cf.ConnectedSlaves += 1
 	// bitcaskNode.slavesInfo = append(bitcaskNode.slavesInfo, &slaveInfo{
 	// address: req.Address,
 	// id:      req.RunId,
@@ -72,7 +78,6 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 	// })
 
 	// 3. 开启心跳检测
-	go bitcaskNode.checkSlavesAlive(*time.NewTicker(time.Second * config.MasterHeartBeatFreq))
 
 	// 返回结果
 	return &node.RegisterSlaveResponse{
@@ -255,27 +260,31 @@ func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*
 	}, nil
 }
 
-func (bitcaskNode *BitcaskNode) checkSlavesAlive(ticker time.Ticker) {
-	for range ticker.C {
-		// 非星型拓扑结构下，从节点不该有子节点
-		if bitcaskNode.cf.Role == config.Slave && config.NodeTopology != config.Line {
-			ticker.Stop()
+func (bitcaskNode *BitcaskNode) checkSlavesAlive(ctx context.Context, ticker time.Ticker) {
+	for {
+		select {
+		case <-ticker.C: // 非星型拓扑结构下，从节点不该有子节点
+			if bitcaskNode.cf.Role == config.Slave && config.NodeTopology != config.Line {
+				ticker.Stop()
+				return
+			}
+
+			bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
+				info, ok := iInfo.(slaveInfo)
+				if !ok {
+					log.Errorf("Convert iInfo[%v] to info failed", iInfo)
+					return true
+				}
+				rpc := info.rpc
+				alive, err := rpc.IsAlive(context.Background())
+				if err != nil || !alive {
+					log.Infof("MASTER : slave [%s] is not alive, remove.", id)
+					bitcaskNode.RemoveSlave(id.(string))
+				}
+				return true
+			})
+		case <-ctx.Done():
 			return
 		}
-
-		bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
-			info, ok := iInfo.(slaveInfo)
-			if !ok {
-				log.Errorf("Convert iInfo[%v] to info failed", iInfo)
-				return true
-			}
-			rpc := info.rpc
-			alive, err := rpc.IsAlive(context.Background())
-			if err != nil || !alive {
-				log.Infof("MASTER : slave [%s] is not alive, remove.", id)
-				bitcaskNode.RemoveSlave(id.(string))
-			}
-			return true
-		})
 	}
 }
