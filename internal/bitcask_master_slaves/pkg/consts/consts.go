@@ -6,5 +6,5 @@ const (
 	TCP              = "tcp"
 	NodeServiceName  = "node"
 	ProxyServiceName = "proxyService"
-	Weight           = 3
+	Weight           = 6
 )

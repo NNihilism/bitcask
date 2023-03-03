@@ -7,6 +7,7 @@ import (
 	"bitcaskDB/internal/bitcask_master_slaves/pkg/errno"
 	"bitcaskDB/internal/log"
 	"bitcaskDB/internal/util"
+	"fmt"
 )
 
 var resultOK = "OK"
@@ -172,7 +173,8 @@ func (bitcaskNode *BitcaskNode) HandleOpLogEntryRequest(req *node.LogEntryReques
 func (bitcaskNode *BitcaskNode) executeOpReq(req *node.LogEntryRequest) (*node.LogEntryResponse, error) {
 	command, args := req.Cmd, req.Args_
 	cmdFunc := supportedCommands[command]
-
+	fmt.Println("command:", command)
+	fmt.Println("args:", args)
 	if isReadOperation(command) {
 		bitcaskNode.mu.RLock()
 	} else {
@@ -181,7 +183,13 @@ func (bitcaskNode *BitcaskNode) executeOpReq(req *node.LogEntryRequest) (*node.L
 	rpcResp := &node.LogEntryResponse{}
 
 	if res, err := cmdFunc(bitcaskNode, util.StrArrToByteArr(args)); err != nil {
+		log.Infof("cmdFunc err [%v]", err)
 		rpcResp.BaseResp = pack.BuildBaseResp(node.ErrCode_OpLogEntryErrCode, err)
+		if isReadOperation(command) {
+			bitcaskNode.mu.RUnlock()
+		} else {
+			bitcaskNode.mu.Unlock()
+		}
 		return rpcResp, nil
 	} else {
 		iResp, err := pack.BuildResp(pack.OpLogEntryResp, res)
@@ -194,7 +202,6 @@ func (bitcaskNode *BitcaskNode) executeOpReq(req *node.LogEntryRequest) (*node.L
 	if isReadOperation(command) {
 		bitcaskNode.mu.RUnlock()
 		return rpcResp, nil // 读请求不需要更新任何配置
-
 	} else {
 		bitcaskNode.mu.Unlock()
 	}

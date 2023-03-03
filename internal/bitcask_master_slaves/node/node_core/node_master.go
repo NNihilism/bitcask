@@ -89,6 +89,7 @@ func (bitcaskNode *BitcaskNode) casSlaveSyncStatus(slaveId string, origin, targe
 }
 
 func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nodeSynctatusCode) bool {
+
 	bitcaskNode.slaveInfoMu.Lock()
 	defer bitcaskNode.slaveInfoMu.Unlock()
 
@@ -103,6 +104,7 @@ func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nod
 }
 
 func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
+
 	bitcaskNode.slaveInfoMu.Lock()
 	defer bitcaskNode.slaveInfoMu.Unlock()
 
@@ -133,6 +135,7 @@ func (item *cacheItem) Len() int {
 }
 
 func (bitcaskNode *BitcaskNode) AddCache(req *node.LogEntryRequest) {
+
 	bitcaskNode.cacheMu.Lock()
 	defer bitcaskNode.cacheMu.Unlock()
 
@@ -141,6 +144,7 @@ func (bitcaskNode *BitcaskNode) AddCache(req *node.LogEntryRequest) {
 }
 
 func (bitcaskNode *BitcaskNode) GetCache(key int64) (*node.LogEntryRequest, bool) {
+
 	bitcaskNode.cacheMu.Lock()
 	defer bitcaskNode.cacheMu.Unlock()
 
@@ -182,6 +186,7 @@ func (bitcaskNode *BitcaskNode) saveMasterConfig() {
 func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*node.GetAllNodesInfoResp, error) {
 	// slavesAddr := []string{}
 	// slavesId := []string{}
+
 	bitcaskNode.slaveInfoMu.Lock()
 	defer bitcaskNode.slaveInfoMu.Unlock()
 

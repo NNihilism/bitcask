@@ -51,6 +51,7 @@ type BitcaskNode struct {
 	// TODO 由于BitcaskDB缺少快照功能 因此得在bitcask的上层再添加一个锁来保证”快照的实现“
 	mu *sync.RWMutex
 
+	// slaveInfo还需要锁吗？
 	slaveInfoMu         *sync.RWMutex
 	slavesInfo          sync.Map
 	infosLastUpdateTime int64

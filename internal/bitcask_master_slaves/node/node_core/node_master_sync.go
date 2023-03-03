@@ -406,12 +406,15 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReq(req *node.PSyncRequest) (*node.PS
 		resp.Code = int8(config.IncreReplSync)
 	} else {
 		// 避免重复创建协程进行数据同步
-		// TODO 感觉仍然有并发问题?比如两个协程都判断到此时非Full,然后都进入到changeSlave,并开启协程. 解决方法:
-		if status, ok := bitcaskNode.getSlaveStatus(req.SlaveId); !ok || status == nodeInFullRepl {
-			resp.Code = int8(config.Fail)
+		if ok := bitcaskNode.casSlaveSyncStatus(req.SlaveId, nodeInIdle, nodeInFullRepl); !ok {
 			return resp, nil
 		}
-		bitcaskNode.changeSlaveSyncStatus(req.SlaveId, nodeInFullRepl)
+
+		//  感觉仍然有并发问题?比如两个协程都判断到此时非Full,然后都进入到changeSlave,并开启协程. 解决方法: CAS
+		// if status, ok := bitcaskNode.getSlaveStatus(req.SlaveId); !ok || status == nodeInFullRepl {
+		// 	resp.Code = int8(config.Fail)
+		// }
+		// bitcaskNode.changeSlaveSyncStatus(req.SlaveId, nodeInFullRepl)
 
 		// 全量复制与增量复制不同,此时不着急go一个FullReplication(),需要等slave准备好再来
 		resp.Code = int8(config.FullReplSync)
