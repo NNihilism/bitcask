@@ -114,11 +114,6 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 
 // 全量复制
 func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
-	defer func() {
-
-		// bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
-	}()
-
 	// 数据解析与数据发送可以并发执行
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -245,8 +240,6 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	close(syncChan)
 	wg.Wait() // 等待数据都发送完了再通知 不然slave可能先收到结束通知导致不接收尚未发送完的数据
 
-	bitcaskNode.flushAndUpdate(slaveId)
-
 	ok, err = rpc.ReplFinishNotify(context.Background(), &node.ReplFinishNotifyReq{
 		Ok:           true,
 		SyncType:     int8(config.FullReplSync),
@@ -260,6 +253,8 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 		bitcaskNode.RemoveSlave(slaveId)
 	}
 
+	// ”快照“部分没问题，则刷新缓冲区
+	bitcaskNode.flushAndUpdate(slaveId)
 }
 
 func packLogEntryRequest(datatype string, value [][]byte, masterId string, entryId int64) *node.LogEntryRequest {
