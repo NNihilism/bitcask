@@ -10,6 +10,7 @@ import (
 	"bitcaskDB/internal/log"
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -180,7 +181,22 @@ func (bitcaskNode *BitcaskNode) saveMasterConfig() {
 	m := config.MasterConfigMap
 	// 写入cur_offset
 	bitcaskNode.db.HSet([]byte(m["key"]), []byte(m["field_cur_offset"]), []byte(fmt.Sprintf("%d", bitcaskNode.cf.CurReplicationOffset)))
-	// 还可以补充别的?
+	a, err := bitcaskNode.db.HGet([]byte(m["key"]), []byte(m["field_cur_offset"]))
+	if err != nil {
+		log.Infof("error [%v]\n", err)
+	}
+	fmt.Printf("A:%v", a)
+	// TODO 还可以补充别的?
+}
+
+func (bitcaskNode *BitcaskNode) initMasterConfig() {
+	m := config.MasterConfigMap
+	offsetStr, err := bitcaskNode.db.HGet([]byte(m["key"]), []byte(m["field_cur_offset"]))
+	if err != nil {
+		log.Infof("error [%v]\n", err)
+	}
+	offset, _ := strconv.Atoi(string(offsetStr))
+	bitcaskNode.cf.CurReplicationOffset = offset
 }
 
 func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*node.GetAllNodesInfoResp, error) {

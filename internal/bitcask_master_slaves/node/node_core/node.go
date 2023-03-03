@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -84,16 +83,18 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 		return nil, err
 	}
 
-	// 读取数据库中的偏移字段
-	strOffset, _ := db.HGet(config.MasterConfigMap["key"], config.MasterConfigMap["cur_offset"])
-	var offset int
-	if strOffset != nil {
-		offset, err := strconv.Atoi(string(strOffset))
-		if err != nil {
-			log.Errorf("strconv.Atoi(%s) err [%v]", offset, err)
-		}
-	}
-	nodeConfig.CurReplicationOffset = offset
+	// // 读取数据库中的偏移字段
+
+	// strOffset, _ := db.HGet(config.MasterConfigMap["key"], config.MasterConfigMap["cur_offset"])
+	// var offset int
+	// if strOffset != nil {
+	// 	offset, err := strconv.Atoi(string(strOffset))
+	// 	if err != nil {
+	// 		log.Errorf("strconv.Atoi(%s) err [%v]", offset, err)
+	// 	}
+	// }
+	// fmt.Println("strOffset : ", strOffset)
+	// nodeConfig.CurReplicationOffset = offset
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	// 创建node节点
@@ -111,6 +112,9 @@ func NewBitcaskNode(nodeConfig *config.NodeConfig, opts options.Options) (*Bitca
 		Ctx:    ctx,
 		cancel: cancelFunc,
 	}
+
+	// 读取数据库中的偏移字段
+	node.initMasterConfig()
 
 	go node.checkSlavesAlive(node.Ctx, *time.NewTicker(time.Second * config.MasterHeartBeatFreq))
 
