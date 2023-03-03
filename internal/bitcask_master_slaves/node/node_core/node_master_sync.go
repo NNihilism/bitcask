@@ -43,10 +43,8 @@ func (bitcaskNode *BitcaskNode) AsynchronousSync(req *node.LogEntryRequest) {
 
 // 半同步更新
 func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
-	wg := new(sync.WaitGroup)
 	semi_cnt := int(float64(bitcaskNode.cf.ConnectedSlaves) * config.SemiSynchronousRate)
-	wg.Add(semi_cnt)
-
+	ch := make(chan struct{})
 	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {
 		info, ok := iInfo.(*slaveInfo)
 		if !ok {
@@ -66,16 +64,18 @@ func (bitcaskNode *BitcaskNode) SemiSynchronousSync(req *node.LogEntryRequest) {
 
 		rpc := info.rpc
 		go func(rpc nodeservice.Client) {
-			// TODO done会报异常
-			defer wg.Done()
 			ctx, _ := context.WithTimeout(context.Background(), config.RpcTimeOut)
 			rpc.OpLogEntry(ctx, req)
+			<-ch
 		}(rpc)
 
 		return true
 	})
 
-	wg.Wait()
+	for i := 0; i < semi_cnt; i++ {
+		ch <- struct{}{}
+	}
+	close(ch)
 }
 
 // 同步更新
