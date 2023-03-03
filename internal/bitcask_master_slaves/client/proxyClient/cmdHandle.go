@@ -128,7 +128,6 @@ func quit(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
 
 func setProxy(client *Client, cmd []byte, args [][]byte) (interface{}, error) {
 	if len(args) == 0 {
-		// fmt.Println("invalid addres...")
 		return []byte("invalid addres..."), nil
 	}
 	fmt.Println("...")

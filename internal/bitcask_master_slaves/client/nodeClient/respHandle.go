@@ -12,7 +12,6 @@ import (
 func ToString(obj interface{}) ([]byte, error) {
 	typeOfObj := reflect.TypeOf(obj).Elem()
 	var bf bytes.Buffer
-
 	switch typeOfObj.Name() {
 	case "InfoResponse":
 		// type InfoResponse struct {
@@ -59,7 +58,7 @@ func ToString(obj interface{}) ([]byte, error) {
 		// }
 		resp := obj.(*node.LogEntryResponse)
 		if resp.BaseResp.StatusCode != 0 {
-			return nil, errors.New(resp.BaseResp.StatusMessage)
+			return []byte("(error) : " + resp.BaseResp.StatusMessage), nil
 		}
 		if resp.Info != "" {
 			return []byte(resp.Info), nil
