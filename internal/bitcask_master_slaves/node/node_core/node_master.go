@@ -71,41 +71,38 @@ func (bitcaskNode *BitcaskNode) HandleSlaveOfReq(req *node.RegisterSlaveRequest)
 // 虽然Load和Store是并发安全的，但是并不能原子执行
 // 需要一个类似CAS的语句来保证并发安全
 func (bitcaskNode *BitcaskNode) casSlaveSyncStatus(slaveId string, origin, target nodeSynctatusCode) bool {
-	bitcaskNode.slaveInfoMu.Lock()
-	defer bitcaskNode.slaveInfoMu.Unlock()
+	// bitcaskNode.slaveInfoMu.RLock()
+	// defer bitcaskNode.slaveInfoMu.RUnlock()
 
 	info, ok := bitcaskNode.getSlaveInfo(slaveId)
 	if !ok {
 		return false
 	}
+
+	info.mu.Lock()
+	defer info.mu.Unlock()
 
 	if origin != info.status {
 		return false
 	}
 
 	info.status = target
-	bitcaskNode.slavesInfo.Store(slaveId, info)
 
 	return true
 }
 
 func (bitcaskNode *BitcaskNode) changeSlaveSyncStatus(slaveId string, status nodeSynctatusCode) bool {
-
-	bitcaskNode.slaveInfoMu.Lock()
-	defer bitcaskNode.slaveInfoMu.Unlock()
-
 	info, ok := bitcaskNode.getSlaveInfo(slaveId)
 	if !ok {
 		return false
 	}
 	info.status = status
-	bitcaskNode.slavesInfo.Store(slaveId, info)
+	// bitcaskNode.slavesInfo.Store(slaveId, info)	//多此一举。。。sync.Map存的是info的指针
 
 	return true
 }
 
 func (bitcaskNode *BitcaskNode) RemoveSlave(slaveId string) error {
-
 	bitcaskNode.slaveInfoMu.Lock()
 	defer bitcaskNode.slaveInfoMu.Unlock()
 
@@ -136,11 +133,9 @@ func (item *cacheItem) Len() int {
 }
 
 func (bitcaskNode *BitcaskNode) AddCache(req *node.LogEntryRequest) {
-
 	bitcaskNode.cacheMu.Lock()
 	defer bitcaskNode.cacheMu.Unlock()
 
-	// log.Info("添加缓存[%v]", req)
 	bitcaskNode.replBakBuffer.Add(fmt.Sprintf("%d", req.EntryId), &cacheItem{req: req})
 }
 
@@ -200,12 +195,8 @@ func (bitcaskNode *BitcaskNode) initMasterConfig() {
 }
 
 func (bitcaskNode *BitcaskNode) GetAllNodesInfo(req *node.GetAllNodesInfoReq) (*node.GetAllNodesInfoResp, error) {
-	// slavesAddr := []string{}
-	// slavesId := []string{}
-
-	bitcaskNode.slaveInfoMu.Lock()
-	defer bitcaskNode.slaveInfoMu.Unlock()
-
+	// bitcaskNode.slaveInfoMu.Lock()
+	// defer bitcaskNode.slaveInfoMu.Unlock()
 	infos := []*node.SlaveInfo{}
 
 	bitcaskNode.slavesInfo.Range(func(id, iInfo interface{}) bool {

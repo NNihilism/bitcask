@@ -115,7 +115,8 @@ func (bitcaskNode *BitcaskNode) SynchronousSync(req *node.LogEntryRequest) {
 // 全量复制
 func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	defer func() {
-		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
+
+		// bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 	}()
 
 	// 数据解析与数据发送可以并发执行
@@ -132,6 +133,7 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	keys, err := bitcaskNode.db.GetStrsKeys()
 	if err != nil {
 		log.Errorf("GetStrsKeys err [%v]", err)
+		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 		bitcaskNode.mu.Unlock()
 		return
 	}
@@ -152,8 +154,8 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	keys, err = bitcaskNode.db.GetListKeys()
 	if err != nil {
 		log.Errorf("GetListKeys err [%v]", err)
+		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 		bitcaskNode.mu.Unlock()
-
 		return
 	}
 	for _, key := range keys {
@@ -174,7 +176,7 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	if err != nil {
 		log.Errorf("GetHashKeys err [%v]", err)
 		bitcaskNode.mu.Unlock()
-
+		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 		return
 	}
 	for _, key := range keys {
@@ -196,7 +198,7 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	if err != nil {
 		log.Errorf("GetSetKeys err [%v]", err)
 		bitcaskNode.mu.Unlock()
-
+		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 		return
 	}
 	for _, key := range keys {
@@ -236,13 +238,15 @@ func (bitcaskNode *BitcaskNode) FullReplication(slaveId string) {
 	// 通知 全量复制完成/失败 客户端再决定要干嘛
 	rpc, ok := bitcaskNode.getSlaveRPC(slaveId)
 	if !ok {
+		bitcaskNode.changeSlaveSyncStatus(slaveId, nodeInIdle)
 		return
 	}
+
 	close(syncChan)
 	wg.Wait() // 等待数据都发送完了再通知 不然slave可能先收到结束通知导致不接收尚未发送完的数据
 
 	bitcaskNode.flushAndUpdate(slaveId)
-	// bitcaskNode.FlushOpReqBuffer(slaveId)
+
 	ok, err = rpc.ReplFinishNotify(context.Background(), &node.ReplFinishNotifyReq{
 		Ok:           true,
 		SyncType:     int8(config.FullReplSync),
@@ -431,6 +435,7 @@ func (bitcaskNode *BitcaskNode) HandlePSyncReady(req *node.PSyncRequest) (*node.
 	return resp, nil
 }
 
+// 刷新缓冲区数据并改变slave状态
 func (bitcaskNode *BitcaskNode) flushAndUpdate(slaveId string) {
 	info, ok := bitcaskNode.getSlaveInfo(slaveId)
 	if !ok {
